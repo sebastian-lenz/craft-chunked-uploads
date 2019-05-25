@@ -1,0 +1,72 @@
+{% import '_includes/forms' as forms %}
+{% import _self as self %}
+
+{% macro listFolders(settings, folders, depth = 0) %}
+  {% import _self as self %}
+
+  {% for folder in folders %}
+    {% set children = folder.children %}
+    {% set options = settings.folderOptions(folder.id) %}
+
+    <tr>
+      <td style="padding:4px 40px 4px {{ depth * 16 }}px;border-top: 1px solid #f1f5f8;">
+        <span class="icon" data-icon="{{ depth == 0 ? 'database' : 'categories' }}"></span>
+        {{ folder }}
+      </td>
+      <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
+        <input type="number" name="folderOptions[{{ folder.id }}][maxUploadSize]" value="{{ options.maxUploadSize|default('') }}" style="text-align:right;width:75px;" />
+        MB
+      </td>
+      <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
+        <input type="number" name="folderOptions[{{ folder.id }}][maxImageWidth]" value="{{ options.maxImageWidth|default('') }}" style="text-align:right;width:75px;" />
+        Pixel
+      </td>
+      <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
+        <input type="number" name="folderOptions[{{ folder.id }}][maxImageHeight]" value="{{ options.maxImageHeight|default('') }}" style="text-align:right;width:75px;" />
+        Pixel
+      </td>
+    </tr>
+
+    {% if children|length %}
+      {{ self.listFolders(settings, children, depth + 1) }}
+    {% endif %}
+  {% endfor %}
+{% endmacro %}
+
+<h3>Global settings</h3>
+{{ forms.textField({
+  errors: settings.getErrors('maxUploadSize'),
+  label: 'Max upload size',
+  instructions: 'Default maximum upload size in MB, set to `0` to disable chunked uploads and use system defaults.',
+  name: 'maxUploadSize',
+  required: true,
+  type: 'number',
+  value: settings.maxUploadSize,
+}) }}
+
+{{ forms.textField({
+  errors: settings.getErrors('chunkSize'),
+  label: 'Upload chunk size',
+  instructions: 'Size of individual uploaded file chunks in MB. Your server must accept uploads of this size.',
+  name: 'chunkSize',
+  required: true,
+  type: 'number',
+  value: settings.chunkSize,
+}) }}
+
+<h3>Per folder settings</h3>
+<p style="color:#8f98a3">Allows you to set rules per folder. Empty settings will inherit parent folder values. Maximum image dimensions will downscale uploaded images and requires ImageMagick CLI tools. Please keep in mind that these settings affect uploads only.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="padding-bottom:8px">Folder</th>
+      <th style="padding-bottom:8px">Max upload size</th>
+      <th style="padding-bottom:8px">Max image width</th>
+      <th style="padding-bottom:8px">Max image height</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ self.listFolders(settings, settings.folderTree) }}
+  </tbody>
+</table>
