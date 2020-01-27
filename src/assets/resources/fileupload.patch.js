@@ -98,6 +98,7 @@ Craft.Uploader = (function(uploader) {
         this.uploader.fileupload('option', 'maxChunkSize', settings.chunkSize * toBytes);
       }
     },
+  }, {
+    defaults: Craft.Uploader.defaults
   });
-
 })(Craft.Uploader);
