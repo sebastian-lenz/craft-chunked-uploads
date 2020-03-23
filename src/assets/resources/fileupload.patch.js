@@ -1,6 +1,9 @@
 Craft.Uploader = (function(uploader) {
   var toBytes = 1048576;
-  var saveAction = 'admin/actions/assets/save-asset';
+  var saveActions = [
+    'admin/actions/assets/save-asset',
+    'admin/actions/assets/upload',
+  ];
   var settings = {
     chunkSize: 1,
     maxSizes: {},
@@ -21,7 +24,9 @@ Craft.Uploader = (function(uploader) {
 
       if (
         'url' in settings &&
-        settings.url.indexOf(saveAction) !== -1
+        saveActions.some(function(saveAction) {
+          return settings.url.indexOf(saveAction) !== -1;
+        })
       ) {
         this.isSaveAction = true;
       }
