@@ -27,9 +27,7 @@
       </td>
     </tr>
 
-    {% if children|length %}
-      {{ self.listFolders(settings, children, depth + 1) }}
-    {% endif %}
+
   {% endfor %}
 {% endmacro %}
 
