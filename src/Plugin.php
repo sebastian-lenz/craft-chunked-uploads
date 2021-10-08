@@ -3,6 +3,7 @@
 namespace lenz\craft\chunkedUploads;
 
 use Craft;
+use craft\awss3\S3Client;
 use craft\base\Model;
 use craft\web\Application;
 use craft\web\assets\fileupload\FileUploadAsset;
@@ -231,6 +232,20 @@ class Plugin extends \craft\base\Plugin
     }
 
     // Recompose chunks
+    $bucket = Craft::parseEnv($this->getSettings()->useBucket);
+
+    return empty($bucket) ? $this->uploadLocal($request) : $this->uploadBucket($request);
+  }
+
+
+  protected function uploadLocal(Request $request)
+  {
+    $headers          = $request->getHeaders();
+    $upload           = $_FILES[self::FILE_NAME];
+    $uploadedFile     = $upload['tmp_name'];
+    $originalFileName = $this->getContentDisposition($headers);
+
+    list($chunkOffset, $totalSize) = $this->getContentRange($headers);
 
     $tempFile = sys_get_temp_dir() . '/craft_upload_chunks_' . md5($originalFileName);
     if ($chunkOffset > 0) {
@@ -254,6 +269,94 @@ class Plugin extends \craft\base\Plugin
     $uploadedSize = filesize($tempFile);
     $isFinished = $uploadedSize == $totalSize;
     if ($isFinished) {
+      rename($tempFile, $uploadedFile);
+      $this->processImage($request, $uploadedFile);
+    }
+
+    return $isFinished;
+  }
+
+  protected function uploadBucket(Request $request)
+  {
+    $headers          = $request->getHeaders();
+    $upload           = $_FILES[self::FILE_NAME];
+    $uploadedFile     = $upload['tmp_name'];
+    $originalFileName = $this->getContentDisposition($headers);
+
+    list($chunkOffset, $totalSize) = $this->getContentRange($headers);
+
+    $bucket = Craft::parseEnv($this->getSettings()->useBucket);
+    $keyId = Craft::parseEnv($this->getSettings()->keyId);
+    $secret = Craft::parseEnv($this->getSettings()->secret);
+    $region = Craft::parseEnv($this->getSettings()->region);
+
+    $client = new S3Client([
+      'version'     => 'latest',
+      'region'      => $region,
+      'credentials' => [
+        'key'    => $keyId,
+        'secret' => $secret
+      ]
+    ]);
+
+    $tempFileName = 'temp/craft_upload_chunks_' . md5($originalFileName);
+
+    $tempFile = sys_get_temp_dir() . '/' . $tempFileName;
+
+    if ($chunkOffset > 0) {
+      //fetch it from the S3 bucket
+      $result = $client->getObject([
+        'bucket' => $bucket,
+        'Key'    => $tempFileName,
+        'SaveAs' => $tempFile
+      ]);
+
+      $uploadedSize = filesize($tempFile);
+      if ($uploadedSize != $chunkOffset) {
+        throw new Exception('Invalid chunk offset.');
+      }
+
+      file_put_contents($tempFile, fopen($uploadedFile, 'r'), FILE_APPEND);
+
+      $client->putObject([
+        'Bucket'     => $bucket,
+        'Key'        => $tempFileName,
+        'SourceFile' => $tempFile,
+      ]);
+    } else {
+      if (file_exists($tempFile)) {
+        unlink($tempFile);
+      }
+
+      try {
+        $client->deleteObject([
+          'Bucket' => $bucket,
+          'Key'    => $tempFileName,
+        ]);
+      } catch (Throwable $e) {
+        //continue
+      }
+
+      move_uploaded_file($uploadedFile, $tempFile);
+
+      $client->putObject([
+        'Bucket'     => $bucket,
+        'Key'        => $tempFileName,
+        'SourceFile' => $tempFile,
+      ]);
+    }
+
+    // Check for upload completion
+
+    clearstatcache();
+    $uploadedSize = filesize($tempFile);
+    $isFinished = $uploadedSize == $totalSize;
+    if ($isFinished) {
+      $client->deleteObject([
+        'Bucket' => $bucket,
+        'Key'    => $tempFileName,
+      ]);
+
       rename($tempFile, $uploadedFile);
       $this->processImage($request, $uploadedFile);
     }

@@ -28,6 +28,11 @@ class Settings extends Model
   public $maxUploadSize = 0;
 
 
+  public $useBucket;
+  public $keyId;
+  public $secret;
+  public $region;
+
   /**
    * @inheritDoc
    */
