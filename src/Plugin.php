@@ -309,14 +309,14 @@ class Plugin extends \craft\base\Plugin
             ]
         ]);
 
-        $tempFileName = 'temp/craft_upload_chunks_' . md5($originalFileName);
+        $tempFileName = 'craft_upload_chunks_' . md5($originalFileName);
 
         $tempFile = sys_get_temp_dir() . '/' . $tempFileName;
 
         if ($chunkOffset > 0) {
       //fetch it from the S3 bucket
-            $result = $client->getObject([
-                'bucket' => $bucket,
+            $client->getObject([
+                'Bucket' => $bucket,
                 'Key'    => $tempFileName,
                 'SaveAs' => $tempFile
             ]);
