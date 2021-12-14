@@ -247,7 +247,9 @@ class Plugin extends \craft\base\Plugin
 
     list($chunkOffset, $totalSize) = $this->getContentRange($headers);
 
-    $tempFile = sys_get_temp_dir() . '/craft_upload_chunks_' . md5($originalFileName);
+    $tempFile = Craft::$app->getRuntimePath();
+    $tempFile .= '/temp/craft_upload_chunks_' . md5($originalFileName);
+
     if ($chunkOffset > 0) {
       $uploadedSize = filesize($tempFile);
       if ($uploadedSize != $chunkOffset) {
@@ -300,8 +302,7 @@ class Plugin extends \craft\base\Plugin
     ]);
 
     $tempFileName = 'temp/craft_upload_chunks_' . md5($originalFileName);
-
-    $tempFile = sys_get_temp_dir() . '/' . $tempFileName;
+    $tempFile = Craft::$app->getRuntimePath() . $tempFileName;
 
     if ($chunkOffset > 0) {
       //fetch it from the S3 bucket
