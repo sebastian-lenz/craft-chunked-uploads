@@ -9,7 +9,6 @@ use craft\web\Application;
 use craft\web\assets\fileupload\FileUploadAsset;
 use craft\web\Request;
 use Exception;
-use Imagick;
 use lenz\craft\chunkedUploads\assets\FileUploadPatch;
 use Throwable;
 use yii\base\Event;
@@ -146,65 +145,6 @@ class Plugin extends \craft\base\Plugin
     return [$offset, $size];
   }
 
-  /**
-   * @param string $uploadedFile
-   */
-  private function processImage(Request $request, $uploadedFile) {
-    if (!extension_loaded('imagick')) {
-      return;
-    }
-
-    list($maxWidth, $maxHeight) = $this
-      ->getSettings()
-      ->getMaxImageDimension($request->getParam('folderId'));
-
-    if (is_null($maxWidth) && is_null($maxHeight)) {
-      return;
-    }
-
-    try {
-      $hasChanged   = false;
-      $image        = new Imagick($uploadedFile);
-      $format       = $image->getImageFormat();
-      $geometry     = $image->getImageGeometry();
-      $nativeWidth  = $geometry['width'];
-      $nativeHeight = $geometry['height'];
-      $scale        = 1;
-
-      if (
-        is_array(self::$ALLOWED_IMAGE_FORMATS) &&
-        !in_array($format, self::$ALLOWED_IMAGE_FORMATS)
-      ) {
-        $hasChanged = true;
-        $image->setFormat(self::$DEFAULT_FORMAT);
-      }
-
-      if (!is_null($maxWidth) && $nativeWidth > $maxWidth) {
-        $scale = $maxWidth / $nativeWidth;
-      }
-
-      if (!is_null($maxHeight) && $nativeHeight > $maxHeight) {
-        $scale = min($scale, $maxHeight / $nativeHeight);
-      }
-
-      if ($scale < 1) {
-        $hasChanged = true;
-        $image->resizeImage(
-          round($nativeWidth * $scale),
-          round($nativeHeight * $scale),
-          Imagick::FILTER_LANCZOS,
-          1
-        );
-      }
-
-      if ($hasChanged) {
-        $image->setCompressionQuality(100);
-        file_put_contents($uploadedFile, $image->getImageBlob());
-      }
-    } catch (Throwable $error) {
-      Craft::error($error->getMessage());
-    }
-  }
 
   /**
    * @param Request $request
@@ -272,7 +212,6 @@ class Plugin extends \craft\base\Plugin
     $isFinished = $uploadedSize == $totalSize;
     if ($isFinished) {
       rename($tempFile, $uploadedFile);
-      $this->processImage($request, $uploadedFile);
     }
 
     return $isFinished;
@@ -359,7 +298,6 @@ class Plugin extends \craft\base\Plugin
       ]);
 
       rename($tempFile, $uploadedFile);
-      $this->processImage($request, $uploadedFile);
     }
 
     return $isFinished;
