@@ -44,19 +44,17 @@ class Plugin extends \craft\base\Plugin
 
 
   /**
-   * Plugin constructor.
+   * Plugin init.
    *
    * @param $id
    * @param null $parent
    * @param array $config
    */
-  public function __construct($id, $parent = null, array $config = []) {
-    parent::__construct($id, $parent, $config);
+  public function init() {
+    parent::init();
 
-    if (Craft::$app->request->isCpRequest) {
-      Event::on(Application::class, Application::EVENT_BEFORE_ACTION, [$this, 'onBeforeAction']);
-      Event::on(View::class, View::EVENT_END_BODY, [$this, 'onViewEndBody']);
-    }
+    Event::on(Application::class, Application::EVENT_BEFORE_ACTION, [$this, 'onBeforeAction']);
+    Event::on(View::class, View::EVENT_END_BODY, [$this, 'onViewEndBody']);
   }
 
   /**
