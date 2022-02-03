@@ -1,6 +1,6 @@
 <?php
 
-namespace lenz\craft\chunkedUploads;
+namespace lenz\craft\chunkedUploads\helpers;
 
 use Aws\S3\S3Client;
 use Craft;

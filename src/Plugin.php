@@ -16,6 +16,8 @@ use craft\web\UploadedFile;
 use Exception;
 use InvalidArgumentException;
 use lenz\craft\chunkedUploads\assets\FileUploadPatch;
+use lenz\craft\chunkedUploads\helpers\BucketChunkHandler;
+use lenz\craft\chunkedUploads\helpers\LocalChunkHandler;
 use yii\base\Event;
 use yii\base\InvalidConfigException;
 use yii\base\Response;
@@ -61,14 +63,17 @@ class Plugin extends \craft\base\Plugin
       $request->getHeaders()->has('content-range') &&
       ($upload = UploadedFile::getInstanceByName('assets-upload'))
     ) {
-      $chunk = $this->createChunk($request, $upload);
+      $chunk = $this->createHandler($request, $upload);
       $res = $chunk->process();
 
+      // If the chunk handler returns a response, return it.
       if ($res instanceof Response) {
         $res->send();
         exit;
       }
 
+      // If incomplete, just die - we don't want the assets controller
+      // interfering - yet.
       if ($res === false) {
         exit;
       }
@@ -119,7 +124,7 @@ class Plugin extends \craft\base\Plugin
    * @return BaseChunkHandler
    * @throws BadRequestHttpException
    */
-  protected function createChunk(Request $request, UploadedFile $upload)
+  protected function createHandler(Request $request, UploadedFile $upload)
   {
     $folder = self::getFolder($request);
     $volume = $folder->getVolume();

@@ -1,10 +1,9 @@
 <?php
 
-namespace lenz\craft\chunkedUploads;
+namespace lenz\craft\chunkedUploads\helpers;
 
 use Craft;
 use craft\base\Model;
-use craft\models\VolumeFolder;
 use craft\web\Request;
 use craft\web\Response;
 use craft\web\UploadedFile;
