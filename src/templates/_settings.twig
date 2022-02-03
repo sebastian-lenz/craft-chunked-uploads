@@ -53,52 +53,7 @@
   type: 'number',
   value: settings.chunkSize,
 }) }}
-<h3> S3 Settings</h3>
 
-{{ forms.autosuggestField({
-    label: "Access Key ID",
-    id: 'keyId',
-    name: 'keyId',
-    suggestEnvVars: true,
-    value: settings.keyId,
-    errors: settings.getErrors('keyId'),
-    class: 's3-key-id',
-    instructions: ''
-}) }}
-
-{{ forms.autosuggestField({
-    label: "Secret Access Key",
-    id: 'secret',
-    name: 'secret',
-    suggestEnvVars: true,
-    value: settings.secret,
-    errors: settings.getErrors('secret'),
-    class: 's3-secret-key',
-    instructions: ''
-}) }}
-
-
-{{ forms.autosuggestField({
-    label: "Region",
-    id: 'region',
-    name: 'region',
-    suggestEnvVars: true,
-    value: settings.region,
-    errors: settings.getErrors('region'),
-    class: 's3-region-key',
-    instructions: ''
-}) }}
-
-{{ forms.autoSuggestField({
-  errors: settings.getErrors('s3bucket'),
-  label: 'Bucket for temp storage',
-  instructions: 'Use this when using a load balanced environment, will upload to this S3 Bucket in order to chunk your uploads',
-  name: 'useBucket',
-  required: false,
-  type: 'text',
-  value: settings.useBucket,
-  suggestEnvVars: true,
-}) }}
 
 <h3>Per folder settings</h3>
 <p style="color:#8f98a3">Allows you to set rules per folder. Empty settings will inherit parent folder values. Maximum image dimensions will downscale uploaded images and requires ImageMagick CLI tools. Please keep in mind that these settings affect uploads only.</p>

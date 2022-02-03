@@ -4,15 +4,21 @@ namespace lenz\craft\chunkedUploads;
 
 use Craft;
 use craft\awss3\S3Client;
+use craft\awss3\Volume as S3Volume;
 use craft\base\Model;
+use craft\fields\Assets as AssetsField;
+use craft\models\VolumeFolder;
 use craft\web\Application;
 use craft\web\assets\fileupload\FileUploadAsset;
 use craft\web\Request;
 use Exception;
+use InvalidArgumentException;
 use lenz\craft\chunkedUploads\assets\FileUploadPatch;
 use Throwable;
 use yii\base\Event;
 use yii\base\InvalidConfigException;
+use yii\base\NotSupportedException;
+use yii\web\BadRequestHttpException;
 use yii\web\HeaderCollection;
 use yii\web\View;
 
@@ -169,10 +175,63 @@ class Plugin extends \craft\base\Plugin
       throw new Exception('Missing upload header data.');
     }
 
-    // Recompose chunks
-    $bucket = Craft::parseEnv($this->getSettings()->useBucket);
+    if (class_exists(S3Client::class) and class_exists(S3Volume::class)) {
+      $folder = $this->getFolder($request);
+      $volume = $folder->getVolume();
 
-    return empty($bucket) ? $this->uploadLocal($request) : $this->uploadBucket($request);
+      if ($volume instanceof S3Volume) {
+        return $this->uploadBucket($request, $volume);
+      }
+    }
+
+    return $this->uploadLocal($request);
+  }
+
+
+  /**
+   *
+   * @param Request $request
+   * @return VolumeFolder
+   * @throws InvalidConfigException
+   * @throws InvalidArgumentException
+   */
+  protected function getFolder(Request $request)
+  {
+    $folderId = $request->getBodyParam('folderId');
+    $fieldId = $request->getBodyParam('fieldId');
+
+    if (!$folderId && !$fieldId) {
+      throw new BadRequestHttpException('No target destination provided for uploading');
+    }
+
+    if (empty($folderId)) {
+      $field = Craft::$app->getFields()->getFieldById((int)$fieldId);
+
+      if (!($field instanceof AssetsField)) {
+        throw new BadRequestHttpException('The field provided is not an Assets field');
+      }
+
+      if ($elementId = $request->getBodyParam('elementId')) {
+        $siteId = $request->getBodyParam('siteId') ?: null;
+        $element = Craft::$app->getElements()->getElementById($elementId, null, $siteId);
+      } else {
+        $element = null;
+      }
+
+      $folderId = $field->resolveDynamicPathToFolderId($element);
+    }
+
+    if (empty($folderId)) {
+      throw new BadRequestHttpException('The target destination provided for uploading is not valid');
+    }
+
+    $folder = Craft::$app->getAssets()->findFolder(['id' => $folderId]);
+
+    if (!$folder) {
+      throw new BadRequestHttpException('The target folder provided for uploading is not valid');
+    }
+
+    return $folder;
   }
 
 
@@ -215,7 +274,16 @@ class Plugin extends \craft\base\Plugin
     return $isFinished;
   }
 
-  protected function uploadBucket(Request $request)
+
+  /**
+   *
+   * @param Request $request
+   * @param S3Volume $volume
+   * @return bool
+   * @throws NotSupportedException
+   * @throws Exception
+   */
+  protected function uploadBucket(Request $request, $volume)
   {
     $headers          = $request->getHeaders();
     $upload           = $_FILES[self::FILE_NAME];
@@ -224,17 +292,12 @@ class Plugin extends \craft\base\Plugin
 
     list($chunkOffset, $totalSize) = $this->getContentRange($headers);
 
-    $bucket = Craft::parseEnv($this->getSettings()->useBucket);
-    $keyId = Craft::parseEnv($this->getSettings()->keyId);
-    $secret = Craft::parseEnv($this->getSettings()->secret);
-    $region = Craft::parseEnv($this->getSettings()->region);
-
     $client = new S3Client([
       'version'     => 'latest',
-      'region'      => $region,
+      'region'      => $volume->region,
       'credentials' => [
-        'key'    => $keyId,
-        'secret' => $secret
+        'key'    => $volume->keyId,
+        'secret' => $volume->secret,
       ]
     ]);
 
@@ -244,7 +307,7 @@ class Plugin extends \craft\base\Plugin
     if ($chunkOffset > 0) {
       //fetch it from the S3 bucket
       $result = $client->getObject([
-        'bucket' => $bucket,
+        'bucket' => $volume->bucket,
         'Key'    => $tempFileName,
         'SaveAs' => $tempFile
       ]);
@@ -257,7 +320,7 @@ class Plugin extends \craft\base\Plugin
       file_put_contents($tempFile, fopen($uploadedFile, 'r'), FILE_APPEND);
 
       $client->putObject([
-        'Bucket'     => $bucket,
+        'Bucket'     => $volume->bucket,
         'Key'        => $tempFileName,
         'SourceFile' => $tempFile,
       ]);
@@ -268,7 +331,7 @@ class Plugin extends \craft\base\Plugin
 
       try {
         $client->deleteObject([
-          'Bucket' => $bucket,
+          'Bucket' => $volume->bucket,
           'Key'    => $tempFileName,
         ]);
       } catch (Throwable $e) {
@@ -278,7 +341,7 @@ class Plugin extends \craft\base\Plugin
       move_uploaded_file($uploadedFile, $tempFile);
 
       $client->putObject([
-        'Bucket'     => $bucket,
+        'Bucket'     => $volume->bucket,
         'Key'        => $tempFileName,
         'SourceFile' => $tempFile,
       ]);
@@ -289,9 +352,10 @@ class Plugin extends \craft\base\Plugin
     clearstatcache();
     $uploadedSize = filesize($tempFile);
     $isFinished = $uploadedSize == $totalSize;
+
     if ($isFinished) {
       $client->deleteObject([
-        'Bucket' => $bucket,
+        'Bucket' => $volume->bucket,
         'Key'    => $tempFileName,
       ]);
 
