@@ -17,5 +17,8 @@
     "name": "Chunked File Uploads",
     "developer": "Sebastian Lenz",
     "developerUrl": "https://github.com/sebastian-lenz/"
+  },
+  "require-dev": {
+    "craftcms/aws-s3": "^1.3"
   }
 }
