@@ -17,7 +17,9 @@ use InvalidArgumentException;
 use lenz\craft\chunkedUploads\assets\FileUploadPatch;
 use yii\base\Event;
 use yii\base\InvalidConfigException;
+use yii\base\Response;
 use yii\web\BadRequestHttpException;
+use yii\web\ForbiddenHttpException;
 use yii\web\View;
 
 /**
@@ -107,23 +109,53 @@ class Plugin extends \craft\base\Plugin
    */
   protected function createChunk(Request $request, UploadedFile $upload)
   {
-    if (class_exists(S3Client::class) and class_exists(S3Volume::class)) {
-      $folder = self::getFolder($request);
-      $volume = $folder->getVolume();
+    $folder = self::getFolder($request);
+    $volume = $folder->getVolume();
 
-      if ($volume instanceof S3Volume) {
-        return new BucketChunkHandler([
-          'request' => $request,
-          'upload' => $upload,
-          'volume' => $volume,
-        ]);
-      }
+    self::checkFolderPermissions($volume, $folder);
+
+    // AWS multipart uploads.
+    if (
+      class_exists(S3Client::class)
+      and class_exists(S3Volume::class)
+      and ($volume instanceof S3Volume)
+    ) {
+      return new BucketChunkHandler([
+        'request' => $request,
+        'upload' => $upload,
+        'volume' => $volume,
+      ]);
     }
 
+    // Local file chunked uploads.
     return new LocalChunkHandler([
       'request' => $request,
       'upload' => $upload,
     ]);
+  }
+
+
+  /**
+   * Abbreviated from AssetsController::requireVolumePermissionByFolder()
+   *
+   * @param VolumeFolder $folder
+   * @return void
+   * @throws ForbiddenHttpException
+   */
+  protected static function checkFolderPermissions(VolumeInterface $volume, VolumeFolder $folder)
+  {
+    if (!$folder->volumeId) {
+      $userTemporaryFolder = Craft::$app->getAssets()->getUserTemporaryUploadFolder();
+
+      // Skip permission check only if it's the user's temporary folder
+      if ($userTemporaryFolder->id == $folder->id) {
+        return;
+      }
+    }
+
+    if (!Craft::$app->getUser()->checkPermission('saveAssetInVolume: ' . $volume->uid)) {
+      throw new ForbiddenHttpException('User is not permitted to perform this action');
+    }
   }
 
 

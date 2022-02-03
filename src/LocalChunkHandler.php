@@ -34,7 +34,8 @@ class LocalChunkHandler extends BaseChunkHandler
 
         clearstatcache();
 
-        // It's finished!
+        // It's finished - now we're going to overwrite the upload tempfile.
+        // The Craft assets controller will pick this up and do the rest.
         if ($uploadedSize == $this->totalSize) {
             rename($tempFile, $this->upload->tempName);
             return true;
