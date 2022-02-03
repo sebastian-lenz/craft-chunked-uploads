@@ -6,9 +6,9 @@ use Craft;
 use craft\awss3\S3Client;
 use craft\awss3\Volume as S3Volume;
 use craft\base\Model;
+use craft\controllers\AssetsController;
 use craft\fields\Assets as AssetsField;
 use craft\models\VolumeFolder;
-use craft\web\Application;
 use craft\web\assets\fileupload\FileUploadAsset;
 use craft\web\Request;
 use Exception;
@@ -59,7 +59,7 @@ class Plugin extends \craft\base\Plugin
   public function init() {
     parent::init();
 
-    Event::on(Application::class, Application::EVENT_BEFORE_ACTION, [$this, 'onBeforeAction']);
+    Event::on(AssetsController::class, AssetsController::EVENT_BEFORE_ACTION, [$this, 'onBeforeAction']);
     Event::on(View::class, View::EVENT_END_BODY, [$this, 'onViewEndBody']);
   }
 
