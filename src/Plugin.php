@@ -6,6 +6,7 @@ use Craft;
 use craft\awss3\S3Client;
 use craft\awss3\Volume as S3Volume;
 use craft\base\Model;
+use craft\base\VolumeInterface;
 use craft\controllers\AssetsController;
 use craft\fields\Assets as AssetsField;
 use craft\models\VolumeFolder;
@@ -61,7 +62,18 @@ class Plugin extends \craft\base\Plugin
       ($upload = UploadedFile::getInstanceByName('assets-upload'))
     ) {
       $chunk = $this->createChunk($request, $upload);
-      if (!$chunk->process()) die;
+      $res = $chunk->process();
+
+      if ($res instanceof Response) {
+        $res->send();
+        exit;
+      }
+
+      if ($res === false) {
+        exit;
+      }
+
+      // Upload finished - continue the asset creation process.
     }
   }
 
@@ -123,7 +135,7 @@ class Plugin extends \craft\base\Plugin
       return new BucketChunkHandler([
         'request' => $request,
         'upload' => $upload,
-        'volume' => $volume,
+        'folder' => $folder,
       ]);
     }
 

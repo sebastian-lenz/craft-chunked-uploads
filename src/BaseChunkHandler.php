@@ -4,8 +4,11 @@ namespace lenz\craft\chunkedUploads;
 
 use Craft;
 use craft\base\Model;
+use craft\models\VolumeFolder;
 use craft\web\Request;
+use craft\web\Response;
 use craft\web\UploadedFile;
+use yii\base\Response as YiiResponse;
 use yii\web\BadRequestHttpException;
 use yii\web\HeaderCollection;
 
@@ -51,9 +54,36 @@ abstract class BaseChunkHandler extends Model
 
     /**
      *
-     * @return bool true if finished
+     * @return YiiResponse|bool true if finished
      */
     public abstract function process();
+
+
+    /**
+     * Responds to the request with a JSON error message.
+     *
+     * @param string $error The error message.
+     * @return YiiResponse
+     */
+    public function asErrorJson(string $error)
+    {
+        return $this->asJson(['error' => $error]);
+    }
+
+
+    /**
+     * Send data formatted as JSON.
+     *
+     * @param mixed $data
+     * @return YiiResponse
+     */
+    public function asJson($data)
+    {
+        $response = Craft::$app->getResponse();
+        $response->format = Response::FORMAT_JSON;
+        $response->data = $data;
+        return $response;
+    }
 
 
     /**
