@@ -4,11 +4,16 @@ namespace lenz\craft\chunkedUploads\handlers;
 
 use Craft;
 use craft\base\Model;
+use craft\base\VolumeInterface;
+use craft\elements\Asset;
+use craft\helpers\Assets;
+use craft\models\VolumeFolder;
 use craft\web\Request;
 use craft\web\Response;
 use craft\web\UploadedFile;
 use yii\base\Response as YiiResponse;
 use yii\web\BadRequestHttpException;
+use yii\web\ForbiddenHttpException;
 use yii\web\HeaderCollection;
 
 /**
@@ -22,6 +27,13 @@ abstract class BaseChunkHandler extends Model
 
     /** @var UploadedFile */
     public $upload;
+
+    /** @var VolumeFolder */
+    public $folder;
+
+    /** @var VolumeInterface */
+    public $volume;
+
 
     /** @var int */
     protected $chunkOffset;
@@ -48,6 +60,15 @@ abstract class BaseChunkHandler extends Model
 
         [$this->chunkOffset, $this->totalSize] = $contentRange;
         $this->originalFilename = $originalFilename;
+
+        // Check permissions on the first chunk.
+        if ($this->chunkOffset == 0) {
+            $this->checkFolderPermissions();
+
+            // This returns a response, not an exception.
+            // TODO dunno what to do with it yet.
+            // $this->checkConflicts();
+        }
     }
 
 
@@ -129,4 +150,67 @@ abstract class BaseChunkHandler extends Model
         return Craft::$app->getPath()->getTempPath() . DIRECTORY_SEPARATOR . $tempFilename;
     }
 
+
+    /**
+     *
+     * @return string
+     */
+    protected function prepareAssetName()
+    {
+        return Assets::prepareAssetName($this->originalFilename);
+    }
+
+
+    /**
+     * Abbreviated from AssetsController::requireVolumePermissionByFolder()
+     *
+     * @return void
+     * @throws ForbiddenHttpException
+     */
+    protected function checkFolderPermissions()
+    {
+        if (!$this->volume->id) {
+            $userTemporaryFolder = Craft::$app->getAssets()->getUserTemporaryUploadFolder();
+
+            // Skip permission check only if it's the user's temporary folder
+            if ($userTemporaryFolder->id == $this->volume->id) {
+                return;
+            }
+        }
+
+        if (!Craft::$app->getUser()->checkPermission('saveAssetInVolume:' . $this->volume->uid)) {
+            throw new ForbiddenHttpException('User is not permitted to perform this action');
+        }
+    }
+
+
+    /**
+     * From AssetsController::actionUpload()
+     *
+     * @return void
+     */
+    protected function checkConflicts()
+    {
+        $filename = Assets::prepareAssetName($this->originalFilename);
+
+        $asset = Asset::findOne([
+            'folderId' => $this->folder->id,
+            'filename' => $filename,
+        ]);
+
+        // No conflict, skip it.
+        if (!$asset) return;
+
+        $suggestedFilename = Craft::$app->getAssets()->getNameReplacementInFolder($filename, $this->folder->id);
+        $conflictingAssetUrl = ($asset && $this->volume->hasUrls) ? $asset->getUrl() : null;
+
+        return $this->asJson([
+            'conflict' => Craft::t('app', 'A file with the name “{filename}” already exists.', ['filename' => $filename]),
+            'assetId' => 0,
+            'filename' => $filename,
+            'conflictingAssetId' => $asset->id,
+            'suggestedFilename' => $suggestedFilename,
+            'conflictingAssetUrl' => $conflictingAssetUrl,
+        ]);
+    }
 }

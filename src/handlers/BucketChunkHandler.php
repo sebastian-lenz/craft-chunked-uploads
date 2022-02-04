@@ -7,16 +7,25 @@ use Craft;
 use craft\awss3\Volume as S3Volume;
 use craft\elements\Asset;
 use craft\helpers\Assets;
+use craft\web\Session;
+use yii\base\Response as YiiResponse;
 use yii\web\BadRequestHttpException;
 
 /**
  *
+ * @property S3Volume $volume
  */
 class BucketChunkHandler extends BaseChunkHandler
 {
+    /**
+     * AWS multipart uploads have a minimum size of 5mb.
+     *
+     * @var int
+     */
+    static $MIN_CHUNK_SIZE = 5242880;
 
-    /** @var VolumeFolder */
-    public $folder;
+    /** @var string Session prefix. */
+    static $PREFIX = 'chunkedUploads';
 
 
     /** @var S3Client */
@@ -42,17 +51,18 @@ class BucketChunkHandler extends BaseChunkHandler
     /** @inheritdoc */
     public function process()
     {
-        $key = Assets::prepareAssetName($this->originalFilename);
+        $filename = $this->getStored('filename');
 
-        $session = Craft::$app->getSession();
+        if (!$filename) {
+            $filename = $this->prepareAssetName();
+        }
 
-        /** @var S3Volume */
-        $volume = $this->folder->getVolume();
+        $key = rtrim(preg_replace('|/+|', '/', $this->volume->subfolder . '/' . $this->folder->path . '/' . $filename), '/');
 
         // First chunk creates the multipart session.
         if ($this->chunkOffset == 0) {
             $res = $this->client->createMultipartUpload([
-                'Bucket' => $volume->bucket,
+                'Bucket' => $this->volume->bucket,
                 'Key' => $key,
                 'ACL' => 'public-read',
             ]);
@@ -62,43 +72,56 @@ class BucketChunkHandler extends BaseChunkHandler
                 throw new BadRequestHttpException('Unable to create multipart upload.');
             }
 
-            $session->set("chunkedUploads.{$key}.uploadId", $uploadId);
+            $this->store('uploadId', $uploadId);
+            $this->store('filename', $filename);
+
+            // Could conflict, so tidy that up first.
+            $this->removeStored([
+                'parts',
+                'uploadedSize',
+            ]);
+
+            Craft::debug('Created multipart upload for: ' . $key, __METHOD__);
         }
 
         // Subsequent chunks get the multipart session from our session.
         if (!isset($uploadId)) {
-            $uploadId = $session->get("chunkedUploads.{$key}.uploadId");
+            $uploadId = $this->getStored('uploadId');
             if (!$uploadId) {
                 throw new BadRequestHttpException('Missing session upload ID.');
             }
         }
 
-        $parts = $session->get("chunkedUploads.{$key}.parts", []);
-        $uploadedSize = $session->get("chunkedUploads.{$key}.uploadedSize", 0);
+        // Upload the chunk.
+        $parts = $this->getStored('parts', []);
 
         $res = $this->client->uploadPart([
             'Body' => file_get_contents($this->upload->tempName),
-            'Bucket' => $volume->bucket,
+            'Bucket' => $this->volume->bucket,
             'Key' => $key,
             'UploadId' => $uploadId,
             'PartNumber' => count($parts) + 1,
             'ContentLength' => $this->upload->size,
         ]);
 
-        // Increment uploaded size key, add a part.
-        $uploadedSize += $this->upload->size;
         $parts[] = [
             'PartNumber' => count($parts) + 1,
             'ETag' => $res->get('ETag'),
         ];
 
-        $session->set("chunkedUploads.{$key}.parts", $parts);
-        $session->set("chunkedUploads.{$key}.uploadedSize", $uploadedSize);
+        $this->store('parts', $parts);
+
+        // Bump total size.
+        $uploadedSize = $this->getStored('uploadedSize', 0);
+        $uploadedSize += $this->upload->size;
+        $this->store('uploadedSize', $uploadedSize);
+
+        Craft::debug('Uploaded part ' . count($parts) . ': ' . $this->upload->size, __METHOD__);
 
         // Ok we're done!
         if ($uploadedSize == $this->totalSize) {
             $this->client->completeMultipartUpload([
-                'Bucket' => $volume->bucket,
+                'Bucket' => $this->volume->bucket,
                 'Key' => $key,
                 'UploadId' => $uploadId,
                 'MultipartUpload' => [
@@ -107,13 +130,21 @@ class BucketChunkHandler extends BaseChunkHandler
             ]);
 
             // Tidy up.
-            $session->remove("chunkedUploads.{$key}.uploadId");
-            $session->remove("chunkedUploads.{$key}.parts");
-            $session->remove("chunkedUploads.{$key}.uploadedSize");
+            $this->removeStored([
+                'uploadId',
+                'parts',
+                'uploadedSize',
+                'filename',
+            ]);
+
+            Craft::debug('Completed multipart upload: ' . $key, __METHOD__);
 
             // Can't trust the builtin S3 uploader with this one.
             // Gotta finish it up ourselves.
-            return $this->createAsset();
+            $filename = $key = rtrim(preg_replace('|/+|', '/', $this->folder->path . '/' . $filename), '/');
+            $newFilename = $this->prepareAssetName();
+
+            return $this->createAsset($filename, $newFilename);
         }
 
         // Not finished.
@@ -122,22 +153,64 @@ class BucketChunkHandler extends BaseChunkHandler
 
 
     /**
+     * Sanitise the filename.
      *
+     * Also add a rando ID to the end to avoid file conflicts.
+     *
+     * @return string
      */
-    protected function createAsset()
+    protected function prepareAssetName()
+    {
+        $filename = parent::prepareAssetName();
+
+        $name = pathinfo($filename, PATHINFO_FILENAME);
+        $extension = pathinfo($filename, PATHINFO_EXTENSION);
+        $id = substr(uniqid(), 9, 4);
+
+        return "{$name}_{$id}.{$extension}";
+    }
+
+
+    /**
+     * This creates an asset.
+     *
+     * Craft expects a tempfile, which it moves to the target location. We can't
+     * do that here. But we _can_ 'relocate' a file, which lets Craft still
+     * create all the asset bits but doesn't care that there isn't a tempfile.
+     *
+     * So with the multipart, we've uploaded a file at the 'old' location. We
+     * then provide the newFolder/newFilename properties to move the file as
+     * we create the asset.
+     *
+     * The title is generated from the 'original' filename, otherwise we
+     * get the funny dedupe IDs at the end.
+     *
+     * @param string $tempFilename
+     * @param string $newFilename
+     * @return YiiResponse
+     */
+    protected function createAsset($tempFilename, $newFilename)
     {
         try {
-            $filename = Assets::prepareAssetName($this->originalFilename);
-
-            // It's pretty much identical, except we don't add the tempfile.
+            $title = Assets::filename2Title(Assets::prepareAssetName($this->originalFilename));
 
             $asset = new Asset();
-            $asset->filename = $filename;
+            $asset->setVolumeId($this->volume->id);
+            $asset->title = $title;
+
+            // From
+            $asset->filename = $tempFilename;
+            $asset->folderId = $this->folder->id;
+
+            // To
             $asset->newFolderId = $this->folder->id;
-            $asset->setVolumeId($this->folder->volumeId);
+            $asset->newFilename = $newFilename;
+
             $asset->uploaderId = Craft::$app->getUser()->getId();
-            $asset->avoidFilenameConflicts = true;
-            $asset->setScenario(Asset::SCENARIO_CREATE);
+            $asset->avoidFilenameConflicts = false;
+            $asset->dateModified = new \DateTime();
+            $asset->size = $this->totalSize;
+            $asset->setScenario(Asset::SCENARIO_DEFAULT);
 
             $result = Craft::$app->getElements()->saveElement($asset);
 
@@ -145,22 +218,6 @@ class BucketChunkHandler extends BaseChunkHandler
             if (!$result) {
                 $errors = $asset->getFirstErrors();
                 return $this->asErrorJson(Craft::t('app', 'Failed to save the asset:') . ' ' . implode(";\n", $errors));
-            }
-
-            if ($asset->conflictingFilename !== null) {
-                $conflictingAsset = Asset::findOne([
-                    'folderId' => $this->folder->id,
-                    'filename' => $asset->conflictingFilename,
-                ]);
-
-                return $this->asJson([
-                    'conflict' => Craft::t('app', 'A file with the name “{filename}” already exists.', ['filename' => $asset->conflictingFilename]),
-                    'assetId' => $asset->id,
-                    'filename' => $asset->conflictingFilename,
-                    'conflictingAssetId' => $conflictingAsset ? $conflictingAsset->id : null,
-                    'suggestedFilename' => $asset->suggestedFilename,
-                    'conflictingAssetUrl' => ($conflictingAsset && $conflictingAsset->getVolume()->hasUrls) ? $conflictingAsset->getUrl() : null,
-                ]);
             }
 
             return $this->asJson([
@@ -175,4 +232,52 @@ class BucketChunkHandler extends BaseChunkHandler
             return $this->asErrorJson($e->getMessage());
         }
     }
+
+
+    /**
+     * @return Session
+     */
+    protected static function getSession()
+    {
+        static $session;
+        return $session ?? $session = Craft::$app->getSession();
+    }
+
+
+    /**
+     * @param string $key
+     * @param mixed $value
+     * @return void
+     */
+    protected function store($key, $value)
+    {
+        $session = static::getSession();
+        $session->set(static::$PREFIX . ".{$this->originalFilename}.{$key}", $value);
+    }
+
+
+    /**
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
+    protected function getStored($key, $default = null)
+    {
+        $session = static::getSession();
+        return $session->get(static::$PREFIX . ".{$this->originalFilename}.{$key}", $default);
+    }
+
+
+    /**
+     * @param string[] $keys
+     * @return void
+     */
+    protected function removeStored($keys)
+    {
+        $session = static::getSession();
+        foreach ($keys as $key) {
+            $session->remove(static::$PREFIX . ".{$this->originalFilename}.{$key}");
+        }
+    }
+
 }

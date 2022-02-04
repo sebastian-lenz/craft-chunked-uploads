@@ -129,8 +129,6 @@ class Plugin extends \craft\base\Plugin
     $folder = self::getFolder($request);
     $volume = $folder->getVolume();
 
-    self::checkFolderPermissions($volume, $folder);
-
     // AWS multipart uploads.
     if (
       class_exists(S3Client::class)
@@ -141,6 +139,7 @@ class Plugin extends \craft\base\Plugin
         'request' => $request,
         'upload' => $upload,
         'folder' => $folder,
+        'volume' => $volume,
       ]);
     }
 
@@ -148,31 +147,9 @@ class Plugin extends \craft\base\Plugin
     return new LocalChunkHandler([
       'request' => $request,
       'upload' => $upload,
+      'folder' => $folder,
+      'volume' => $volume,
     ]);
-  }
-
-
-  /**
-   * Abbreviated from AssetsController::requireVolumePermissionByFolder()
-   *
-   * @param VolumeFolder $folder
-   * @return void
-   * @throws ForbiddenHttpException
-   */
-  protected static function checkFolderPermissions(VolumeInterface $volume, VolumeFolder $folder)
-  {
-    if (!$folder->volumeId) {
-      $userTemporaryFolder = Craft::$app->getAssets()->getUserTemporaryUploadFolder();
-
-      // Skip permission check only if it's the user's temporary folder
-      if ($userTemporaryFolder->id == $folder->id) {
-        return;
-      }
-    }
-
-    if (!Craft::$app->getUser()->checkPermission('saveAssetInVolume: ' . $volume->uid)) {
-      throw new ForbiddenHttpException('User is not permitted to perform this action');
-    }
   }
 
 
