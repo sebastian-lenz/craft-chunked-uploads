@@ -16,16 +16,17 @@
     /**
      * Chunked file uploader.
      *
-     * TODO - cancel uploads?
-     *
      * Usage:
      * ```
      * new ChunkedUploader({
      *     file: input.files[0],
      *     field: 'assets-upload',
      *     url: '/actions/assets/upload',
-     *     elementId: 100,
-     *     fieldId: 200,
+     *     query: [
+     *         [CSRF_TOKEN_NAME]: CSRF_TOKEN_VALUE,
+     *         elementId: 100,
+     *         fieldId: 200,
+     *     ],
      * })
      * .on('progress' event => {
      *     // event.loaded
@@ -46,12 +47,12 @@
      *
      * Options (defaults):
      * - file: (required)
-     * - field: 'file'
+     * - field: 'assets-upload'
      * - method: 'POST'
-     * - url: ''
+     * - url: '/actions/assets/upload'
      * - query: {}
      * - headers: {}
-     * - chunkSize: 2 * 1000 * 1024 (2mb)
+     * - chunkSize: 5 * 1000 * 1024 (5MB)
      *
      * @param {object} config
      */
