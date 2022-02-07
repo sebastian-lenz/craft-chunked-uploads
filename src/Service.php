@@ -5,6 +5,7 @@ namespace karmabunny\ChunkedUploads;
 use Craft;
 use craft\awss3\S3Client;
 use craft\awss3\Volume as S3Volume;
+use craft\elements\db\AssetQuery;
 use craft\fields\Assets as AssetsField;
 use craft\models\VolumeFolder;
 use craft\web\assets\fileupload\FileUploadAsset;
@@ -57,6 +58,57 @@ class Service extends \craft\base\Component
       // Upload finished - continue the asset creation process.
     }
   }
+
+
+  /**
+   * @throws Exception
+   */
+  public function onAfterAction()
+  {
+    $request = Craft::$app->getRequest();
+    if (!$request->getIsPost()) return;
+
+    $elementId = $request->getBodyParam('elementId');
+    $fieldId = $request->getBodyParam('fieldId');
+    $save = $request->getBodyParam('save');
+
+    // We're going to push the result asset ID into a field if the 'save'
+    // parameter is present.
+    if (
+      $elementId &&
+      $fieldId &&
+      in_array($save, ['append', 'replace'])
+    ) {
+      $element = Craft::$app->getElements()->getElementById($elementId);
+      $field = Craft::$app->getFields()->getFieldById($fieldId);
+
+      if (!$element || !$field) return;
+
+      // The asset ID is in the response body.
+      $response = Craft::$app->getResponse();
+      $assetId = $response->data['assetId'] ?? null;
+
+      // Abort!
+      if (!$assetId) return;
+
+      $value = [];
+
+      // Tack it on-to the existing values.
+      if ($save === 'append') {
+        $query = $element->getFieldValue($field->handle);
+        if ($query instanceof AssetQuery) {
+          $value = $query->ids();
+        }
+      }
+
+      $value[] = $assetId;
+      $element->setFieldValue($field->handle, $value);
+
+      // Complete.
+      Craft::$app->getElements()->saveElement($element);
+    }
+  }
+
 
   /**
    * @param Event $event

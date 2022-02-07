@@ -29,6 +29,7 @@ class Plugin extends \craft\base\Plugin
     $service = Service::instance();
 
     Event::on(AssetsController::class, AssetsController::EVENT_BEFORE_ACTION, [$service, 'onBeforeAction']);
+    Event::on(AssetsController::class, AssetsController::EVENT_AFTER_ACTION, [$service, 'onAfterAction']);
     Event::on(View::class, View::EVENT_END_BODY, [$service, 'onViewEndBody']);
   }
 
