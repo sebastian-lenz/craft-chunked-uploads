@@ -58,27 +58,6 @@ class Settings extends Model
   }
 
   /**
-   * @param int $folderId
-   * @return array
-   */
-  public function getMaxImageDimension($folderId) {
-    $folder = Craft::$app->getAssets()->getFolderById($folderId);
-    while ($folder) {
-      if (array_key_exists($folder->id, $this->folders)) {
-        $options = $this->folders[$folder->id];
-        return [
-          isset($options['maxImageWidth']) ? $options['maxImageWidth'] : null,
-          isset($options['maxImageHeight']) ? $options['maxImageHeight'] : null,
-        ];
-      }
-
-      $folder = $folder->getParent();
-    }
-
-    return [null, null];
-  }
-
-  /**
    * @return array
    */
   public function getMaxUploadSizes() {

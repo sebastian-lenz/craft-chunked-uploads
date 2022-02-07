@@ -17,14 +17,6 @@
         <input type="number" name="folderOptions[{{ folder.id }}][maxUploadSize]" value="{{ options.maxUploadSize|default('') }}" style="text-align:right;width:75px;" />
         MB
       </td>
-      <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
-        <input type="number" name="folderOptions[{{ folder.id }}][maxImageWidth]" value="{{ options.maxImageWidth|default('') }}" style="text-align:right;width:75px;" />
-        Pixel
-      </td>
-      <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
-        <input type="number" name="folderOptions[{{ folder.id }}][maxImageHeight]" value="{{ options.maxImageHeight|default('') }}" style="text-align:right;width:75px;" />
-        Pixel
-      </td>
     </tr>
 
     {% if children|length %}
@@ -56,15 +48,13 @@
 
 
 <h3>Per folder settings</h3>
-<p style="color:#8f98a3">Allows you to set rules per folder. Empty settings will inherit parent folder values. Maximum image dimensions will downscale uploaded images and requires ImageMagick CLI tools. Please keep in mind that these settings affect uploads only.</p>
+<p style="color:#8f98a3">Allows you to set rules per folder. Empty settings will inherit parent folder values.</p>
 
 <table>
   <thead>
     <tr>
       <th style="padding-bottom:8px">Folder</th>
       <th style="padding-bottom:8px">Max upload size</th>
-      <th style="padding-bottom:8px">Max image width</th>
-      <th style="padding-bottom:8px">Max image height</th>
     </tr>
   </thead>
   <tbody>
