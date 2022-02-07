@@ -1,6 +1,7 @@
 The MIT License (MIT)
 
-Copyright (c) Sebastian Lenz
+Copyright (c) Sebastian Lenz 2021
+Copyright (c) Karmabunny 2022
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

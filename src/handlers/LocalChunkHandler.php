@@ -1,6 +1,6 @@
 <?php
 
-namespace lenz\craft\chunkedUploads\handlers;
+namespace karmabunny\ChunkedUploads\handlers;
 
 use yii\web\BadRequestHttpException;
 

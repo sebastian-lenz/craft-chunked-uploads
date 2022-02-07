@@ -1,6 +1,6 @@
 <?php
 
-namespace lenz\craft\chunkedUploads\handlers;
+namespace karmabunny\ChunkedUploads\handlers;
 
 use Craft;
 use craft\base\Model;
@@ -18,7 +18,7 @@ use yii\web\HeaderCollection;
 
 /**
  *
- * @package lenz\craft\chunkedUploads
+ * @package karmabunny\ChunkedUploads
  */
 abstract class BaseChunkHandler extends Model
 {

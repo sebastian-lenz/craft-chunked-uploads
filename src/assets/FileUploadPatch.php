@@ -1,11 +1,10 @@
 <?php
 
-namespace lenz\craft\chunkedUploads\assets;
+namespace karmabunny\ChunkedUploads\assets;
 
-use Craft;
 use craft\helpers\Json;
 use craft\web\assets\fileupload\FileUploadAsset;
-use lenz\craft\chunkedUploads\Plugin;
+use karmabunny\ChunkedUploads\Plugin;
 use yii\web\AssetBundle;
 
 /**

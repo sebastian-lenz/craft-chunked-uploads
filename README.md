@@ -1,8 +1,11 @@
 # Chunked File Uploads for Craft CMS
 
-This plugin enables chunked file uploads in the control  panel of
-the Craft CMS. It allows users to upload files being larger then the
-file upload limit given by your web server.
+This plugin enables chunked file uploads across your whole application.
+
+In particular, this plugin supports uploading chunks to an AWS bucket with a multipart upload.
+
+The core of the plugin is derived from the `sebastianlenz/craft-chunked-uploads` plugin.
+Features such as image transformation, per folder file sizes, and user interfaces are removed.
 
 
 ## Requirements
@@ -21,7 +24,7 @@ instructions:
 
 2. Then tell Composer to load the plugin:
 
-        composer require sebastianlenz/craft-chunked-uploads
+        composer require karmabunny/craft-chunked-uploads
 
 3. Install the plugin:
 
@@ -30,7 +33,13 @@ instructions:
 
 ## Settings
 
-Within your control panel visit the page `Settings` and look 
-for the plugin in the `Plug-ins` section. The plugin allows
-you to both configure the global maximum upload size as well
-as upload limits for individual folders.
+Create a file `chunked.php` in your config/ folder. Here you can control the chunk size and maximum file size.
+
+```php
+return [
+    // in megabytes - default 5mb.
+    'chunkSize' => 5,
+    // in megabytes - default 500mb.
+    'maxUploadSize' => 500,
+];
+```

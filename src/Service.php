@@ -1,6 +1,6 @@
 <?php
 
-namespace lenz\craft\chunkedUploads;
+namespace karmabunny\ChunkedUploads;
 
 use Craft;
 use craft\awss3\S3Client;
@@ -12,9 +12,9 @@ use craft\web\Request;
 use craft\web\UploadedFile;
 use Exception;
 use InvalidArgumentException;
-use lenz\craft\chunkedUploads\assets\FileUploadPatch;
-use lenz\craft\chunkedUploads\handlers\BucketChunkHandler;
-use lenz\craft\chunkedUploads\handlers\LocalChunkHandler;
+use karmabunny\ChunkedUploads\assets\FileUploadPatch;
+use karmabunny\ChunkedUploads\handlers\BucketChunkHandler;
+use karmabunny\ChunkedUploads\handlers\LocalChunkHandler;
 use yii\base\Event;
 use yii\base\InvalidConfigException;
 use yii\base\Response;

@@ -1,6 +1,6 @@
 {
-  "name": "sebastianlenz/craft-chunked-uploads",
-  "description": "Enable large uploads within the Craft CMS control panel",
+  "name": "karmabunny/craft-chunked-uploads",
+  "description": "Enable large uploads",
   "type": "craft-plugin",
   "license": "MIT",
   "require": {
@@ -9,14 +9,14 @@
   },
   "autoload": {
     "psr-4": {
-      "lenz\\craft\\chunkedUploads\\": "src/"
+      "karmabunny\\ChunkedUploads\\": "src/"
     }
   },
   "extra": {
     "handle": "chunked-uploads",
     "name": "Chunked File Uploads",
-    "developer": "Sebastian Lenz",
-    "developerUrl": "https://github.com/sebastian-lenz/"
+    "developer": "Karmabunny",
+    "developerUrl": "https://karmabunny.com.au"
   },
   "require-dev": {
     "craftcms/aws-s3": "^1.3"

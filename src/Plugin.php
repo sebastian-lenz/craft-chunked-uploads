@@ -1,6 +1,6 @@
 <?php
 
-namespace lenz\craft\chunkedUploads;
+namespace karmabunny\ChunkedUploads;
 
 use craft\controllers\AssetsController;
 use yii\base\Event;
