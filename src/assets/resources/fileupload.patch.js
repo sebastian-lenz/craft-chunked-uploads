@@ -5,8 +5,8 @@ Craft.Uploader = (function(uploader) {
     'admin/actions/assets/upload',
   ];
   var settings = {
-    chunkSize: 1,
-    maxSizes: {},
+    chunkSize: 5,
+    maxUploadSize: 500,
   };
 
   try {
@@ -30,22 +30,6 @@ Craft.Uploader = (function(uploader) {
       ) {
         this.isSaveAction = true;
       }
-    },
-
-    getFolderUploadSize: function(paramObject) {
-      if (
-        !this.isSaveAction ||
-        !('folderId' in paramObject)
-      ) {
-        return null;
-      }
-
-      var folderId = parseInt(paramObject.folderId);
-      if (!(folderId in settings.maxSizes)) {
-        return null;
-      }
-
-      return settings.maxSizes[folderId];
     },
 
     processErrorMessages: function() {
@@ -94,8 +78,7 @@ Craft.Uploader = (function(uploader) {
     setParams: function(paramObject) {
       uploader.prototype.setParams.call(this, paramObject);
 
-      var maxSize = this.getFolderUploadSize(paramObject);
-      if (!maxSize) {
+      if (!this.isSaveAction) {
         this.settings.maxFileSize = uploader.defaults.maxFileSize;
         this.uploader.fileupload('option', 'maxChunkSize', undefined);
       } else {

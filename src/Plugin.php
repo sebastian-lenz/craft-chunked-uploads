@@ -5,8 +5,6 @@ namespace lenz\craft\chunkedUploads;
 use Craft;
 use craft\awss3\S3Client;
 use craft\awss3\Volume as S3Volume;
-use craft\base\Model;
-use craft\base\VolumeInterface;
 use craft\controllers\AssetsController;
 use craft\fields\Assets as AssetsField;
 use craft\models\VolumeFolder;
@@ -22,19 +20,17 @@ use yii\base\Event;
 use yii\base\InvalidConfigException;
 use yii\base\Response;
 use yii\web\BadRequestHttpException;
-use yii\web\ForbiddenHttpException;
 use yii\web\View;
 
 /**
  * Class Plugin
- * @method Settings getSettings()
  */
 class Plugin extends \craft\base\Plugin
 {
   /**
    * @inheritDoc
    */
-  public $hasCpSettings = true;
+  public $hasCpSettings = false;
 
 
   /**
@@ -94,20 +90,6 @@ class Plugin extends \craft\base\Plugin
     }
   }
 
-  /**
-   * @inheritDoc
-   * @throws Exception
-   */
-  protected function settingsHtml() {
-    return Craft::$app->view->renderTemplate(
-      'chunked-uploads/_settings.twig',
-      [
-        'settings' => $this->getSettings(),
-      ]
-    );
-  }
-
-
   // Protected methods
   // -----------------
 
@@ -115,7 +97,7 @@ class Plugin extends \craft\base\Plugin
    * @return Model|null
    */
   protected function createSettingsModel() {
-    return new Settings();
+    return Settings::instance();
   }
 
 

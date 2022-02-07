@@ -2,6 +2,7 @@
 
 namespace lenz\craft\chunkedUploads\assets;
 
+use Craft;
 use craft\helpers\Json;
 use craft\web\assets\fileupload\FileUploadAsset;
 use lenz\craft\chunkedUploads\Plugin;
@@ -22,10 +23,7 @@ class FileUploadPatch extends AssetBundle
     $this->depends    = [FileUploadAsset::class];
     $this->js         = ['fileupload.patch.js'];
     $this->jsOptions  = [
-      'data-settings' => Json::encode([
-        'chunkSize' => $settings->chunkSize,
-        'maxSizes'  => $settings->getMaxUploadSizes(),
-      ]),
+      'data-settings' => Json::htmlEncode($settings->toArray()),
     ];
 
     parent::init();
