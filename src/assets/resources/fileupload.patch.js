@@ -10,7 +10,7 @@ Craft.Uploader = (function(uploader) {
   };
 
   try {
-    var scriptTag = document.scripts[document.scripts.length - 1];
+    var scriptTag = document.querySelector("script[data-key='karmabunny/chunked-uploads/fileupload']");
     settings = JSON.parse(scriptTag.getAttribute('data-settings'));
   } catch (error) {
     console.error(error);
@@ -82,7 +82,7 @@ Craft.Uploader = (function(uploader) {
         this.settings.maxFileSize = uploader.defaults.maxFileSize;
         this.uploader.fileupload('option', 'maxChunkSize', undefined);
       } else {
-        this.settings.maxFileSize = maxSize * toBytes;
+        this.settings.maxFileSize = settings.maxUploadSize * toBytes;
         this.uploader.fileupload('option', 'maxChunkSize', settings.chunkSize * toBytes);
       }
     },

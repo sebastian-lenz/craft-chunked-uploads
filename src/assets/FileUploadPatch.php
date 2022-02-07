@@ -22,6 +22,7 @@ class FileUploadPatch extends AssetBundle
     $this->depends    = [FileUploadAsset::class];
     $this->js         = ['fileupload.patch.js'];
     $this->jsOptions  = [
+      'data-key' => 'karmabunny/chunked-uploads/fileupload',
       'data-settings' => Json::htmlEncode($settings->toArray()),
     ];
 
