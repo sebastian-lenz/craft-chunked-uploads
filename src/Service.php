@@ -5,10 +5,12 @@ namespace karmabunny\ChunkedUploads;
 use Craft;
 use craft\awss3\S3Client;
 use craft\awss3\Volume as S3Volume;
+use craft\controllers\AssetsController;
 use craft\elements\db\AssetQuery;
 use craft\fields\Assets as AssetsField;
 use craft\models\VolumeFolder;
 use craft\web\assets\fileupload\FileUploadAsset;
+use craft\web\Response;
 use craft\web\Request;
 use craft\web\UploadedFile;
 use Exception;
@@ -16,9 +18,9 @@ use InvalidArgumentException;
 use karmabunny\ChunkedUploads\assets\FileUploadPatch;
 use karmabunny\ChunkedUploads\handlers\BucketChunkHandler;
 use karmabunny\ChunkedUploads\handlers\LocalChunkHandler;
+use yii\base\ActionEvent;
 use yii\base\Event;
 use yii\base\InvalidConfigException;
-use yii\base\Response;
 use yii\web\BadRequestHttpException;
 use yii\web\View;
 
@@ -29,9 +31,10 @@ class Service extends \craft\base\Component
 {
 
   /**
+   * @param ActionEvent $event
    * @throws Exception
    */
-  public function onBeforeAction() {
+  public function onBeforeAction(ActionEvent $event) {
     $request = Craft::$app->getRequest();
 
     if (
@@ -45,6 +48,11 @@ class Service extends \craft\base\Component
 
       // If the chunk handler returns a response, return it.
       if ($res instanceof Response) {
+        $event = new ActionEvent($event->action);
+        $event->result = $res;
+
+        Craft::$app->controller->trigger(AssetsController::EVENT_AFTER_ACTION, $event);
+
         $res->send();
         exit;
       }
@@ -61,9 +69,10 @@ class Service extends \craft\base\Component
 
 
   /**
+   * @param ActionEvent $event
    * @throws Exception
    */
-  public function onAfterAction()
+  public function onAfterAction(ActionEvent $event)
   {
     $request = Craft::$app->getRequest();
     if (!$request->getIsPost()) return;
@@ -85,7 +94,9 @@ class Service extends \craft\base\Component
       if (!$element || !$field) return;
 
       // The asset ID is in the response body.
-      $response = Craft::$app->getResponse();
+
+      /** @var Response $response */
+      $response = $event->result;
       $assetId = $response->data['assetId'] ?? null;
 
       // Abort!
