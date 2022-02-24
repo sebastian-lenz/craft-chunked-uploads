@@ -39,10 +39,10 @@ class BucketChunkHandler extends BaseChunkHandler
 
         $this->client = new S3Client([
             'version'     => 'latest',
-            'region'      => $this->volume->region,
+            'region'      => Craft::parseEnv($this->volume->region),
             'credentials' => [
-                'key'    => $this->volume->keyId,
-                'secret' => $this->volume->secret,
+                'key'    => Craft::parseEnv($this->volume->keyId),
+                'secret' => Craft::parseEnv($this->volume->secret),
             ]
         ]);
     }
@@ -57,12 +57,15 @@ class BucketChunkHandler extends BaseChunkHandler
             $filename = $this->prepareAssetName();
         }
 
-        $key = rtrim(preg_replace('|/+|', '/', $this->volume->subfolder . '/' . $this->folder->path . '/' . $filename), '/');
+        $subfolder = Craft::parseEnv($this->volume->subfolder);
+        $bucket = Craft::parseEnv($this->volume->bucket);
+
+        $key = rtrim(preg_replace('|/+|', '/', $subfolder . '/' . $this->folder->path . '/' . $filename), '/');
 
         // First chunk creates the multipart session.
         if ($this->chunkOffset == 0) {
             $res = $this->client->createMultipartUpload([
-                'Bucket' => $this->volume->bucket,
+                'Bucket' => $bucket,
                 'Key' => $key,
                 'ACL' => 'public-read',
             ]);
@@ -97,7 +100,7 @@ class BucketChunkHandler extends BaseChunkHandler
 
         $res = $this->client->uploadPart([
             'Body' => file_get_contents($this->upload->tempName),
-            'Bucket' => $this->volume->bucket,
+            'Bucket' => $bucket,
             'Key' => $key,
             'UploadId' => $uploadId,
             'PartNumber' => count($parts) + 1,
@@ -121,7 +124,7 @@ class BucketChunkHandler extends BaseChunkHandler
         // Ok we're done!
         if ($uploadedSize == $this->totalSize) {
             $this->client->completeMultipartUpload([
-                'Bucket' => $this->volume->bucket,
+                'Bucket' => $bucket,
                 'Key' => $key,
                 'UploadId' => $uploadId,
                 'MultipartUpload' => [
