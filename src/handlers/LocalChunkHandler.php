@@ -13,23 +13,34 @@ class LocalChunkHandler extends BaseChunkHandler
     /** @inheritdoc */
     public function process()
     {
-        $tempFile = $this->getTempFilename();
-        $uploadedSize = filesize($tempFile);
+        $tempFile = $this->getStored('filename');
 
-        // Appending chunks to the temp file.
-        if ($this->chunkOffset > 0) {
-            if ($uploadedSize != $this->chunkOffset) {
-                throw new BadRequestHttpException('Invalid chunk offset.');
-            }
-
-            file_put_contents($tempFile, fopen($this->upload->tempName, 'r'), FILE_APPEND);
+        if (!$tempFile) {
+            $tempFile = $this->getTempFilename();
         }
+
         // Initial file.
-        else {
+        if ($this->chunkOffset == 0) {
+            $uploadedSize = filesize($this->upload->tempName);
+
             if (file_exists($tempFile)) {
                 unlink($tempFile);
             }
             move_uploaded_file($this->upload->tempName, $tempFile);
+
+            $this->store('filename', $tempFile);
+        }
+        // Appending chunks to the temp file.
+        else {
+            $uploadedSize = filesize($tempFile);
+
+            if ($uploadedSize != $this->chunkOffset) {
+                throw new BadRequestHttpException("Invalid chunk offset; expected {$uploadedSize}, got {$this->chunkOffset}.");
+            }
+
+            file_put_contents($tempFile, fopen($this->upload->tempName, 'r'), FILE_APPEND);
+
+            $uploadedSize += filesize($this->upload->tempName);
         }
 
         clearstatcache();
@@ -38,6 +49,7 @@ class LocalChunkHandler extends BaseChunkHandler
         // The Craft assets controller will pick this up and do the rest.
         if ($uploadedSize == $this->totalSize) {
             rename($tempFile, $this->upload->tempName);
+            $this->removeStored(['filename']);
             return true;
         }
 
