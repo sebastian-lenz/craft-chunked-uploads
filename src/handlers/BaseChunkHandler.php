@@ -10,6 +10,7 @@ use craft\helpers\Assets;
 use craft\models\VolumeFolder;
 use craft\web\Request;
 use craft\web\Response;
+use craft\web\Session;
 use craft\web\UploadedFile;
 use yii\base\Response as YiiResponse;
 use yii\web\BadRequestHttpException;
@@ -22,6 +23,11 @@ use yii\web\HeaderCollection;
  */
 abstract class BaseChunkHandler extends Model
 {
+
+    /** @var string Session prefix. */
+    static $PREFIX = 'chunkedUploads';
+
+
     /** @var Request */
     public $request;
 
@@ -213,4 +219,52 @@ abstract class BaseChunkHandler extends Model
             'conflictingAssetUrl' => $conflictingAssetUrl,
         ]);
     }
+
+
+    /**
+     * @return Session
+     */
+    protected static function getSession()
+    {
+        static $session;
+        return $session ?? $session = Craft::$app->getSession();
+    }
+
+
+    /**
+     * @param string $key
+     * @param mixed $value
+     * @return void
+     */
+    protected function store($key, $value)
+    {
+        $session = static::getSession();
+        $session->set(static::$PREFIX . ".{$this->originalFilename}.{$key}", $value);
+    }
+
+
+    /**
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
+    protected function getStored($key, $default = null)
+    {
+        $session = static::getSession();
+        return $session->get(static::$PREFIX . ".{$this->originalFilename}.{$key}", $default);
+    }
+
+
+    /**
+     * @param string[] $keys
+     * @return void
+     */
+    protected function removeStored($keys)
+    {
+        $session = static::getSession();
+        foreach ($keys as $key) {
+            $session->remove(static::$PREFIX . ".{$this->originalFilename}.{$key}");
+        }
+    }
+
 }

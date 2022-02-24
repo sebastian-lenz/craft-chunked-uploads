@@ -7,7 +7,6 @@ use Craft;
 use craft\awss3\Volume as S3Volume;
 use craft\elements\Asset;
 use craft\helpers\Assets;
-use craft\web\Session;
 use yii\base\Response as YiiResponse;
 use yii\web\BadRequestHttpException;
 
@@ -23,9 +22,6 @@ class BucketChunkHandler extends BaseChunkHandler
      * @var int
      */
     static $MIN_CHUNK_SIZE = 5242880;
-
-    /** @var string Session prefix. */
-    static $PREFIX = 'chunkedUploads';
 
 
     /** @var S3Client */
@@ -233,53 +229,6 @@ class BucketChunkHandler extends BaseChunkHandler
             Craft::error('An error occurred when saving an asset: ' . $e->getMessage(), __METHOD__);
             Craft::$app->getErrorHandler()->logException($e);
             return $this->asErrorJson($e->getMessage());
-        }
-    }
-
-
-    /**
-     * @return Session
-     */
-    protected static function getSession()
-    {
-        static $session;
-        return $session ?? $session = Craft::$app->getSession();
-    }
-
-
-    /**
-     * @param string $key
-     * @param mixed $value
-     * @return void
-     */
-    protected function store($key, $value)
-    {
-        $session = static::getSession();
-        $session->set(static::$PREFIX . ".{$this->originalFilename}.{$key}", $value);
-    }
-
-
-    /**
-     * @param string $key
-     * @param mixed $default
-     * @return mixed
-     */
-    protected function getStored($key, $default = null)
-    {
-        $session = static::getSession();
-        return $session->get(static::$PREFIX . ".{$this->originalFilename}.{$key}", $default);
-    }
-
-
-    /**
-     * @param string[] $keys
-     * @return void
-     */
-    protected function removeStored($keys)
-    {
-        $session = static::getSession();
-        foreach ($keys as $key) {
-            $session->remove(static::$PREFIX . ".{$this->originalFilename}.{$key}");
         }
     }
 
