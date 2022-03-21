@@ -5,7 +5,7 @@
   {% import _self as self %}
 
   {% for folder in folders %}
-    {% set children = folder.children %}
+    {% set children = settings.filterVisibleChildren(folder.children) %}
     {% set options = settings.folderOptions(folder.id) %}
 
     <tr>
@@ -29,6 +29,27 @@
 
     {% if children|length %}
       {{ self.listFolders(settings, children, depth + 1) }}
+    {% endif %}
+
+    {% if depth == 0 %}
+      <tr>
+        <td style="padding:4px 40px 4px 16px;border-top: 1px solid #f1f5f8;">
+          <span class="icon" data-icon="categories"></span>
+          <input name="folderOptions[{{ folder.id }}][create][path]">
+        </td>
+        <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
+          <input type="number" name="folderOptions[{{ folder.id }}][create][maxUploadSize]" style="text-align:right;width:75px;" />
+          MB
+        </td>
+        <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
+          <input type="number" name="folderOptions[{{ folder.id }}][create][maxImageWidth]" style="text-align:right;width:75px;" />
+          Pixel
+        </td>
+        <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
+          <input type="number" name="folderOptions[{{ folder.id }}][create][maxImageHeight]" style="text-align:right;width:75px;" />
+          Pixel
+        </td>
+      </tr>
     {% endif %}
   {% endfor %}
 {% endmacro %}
