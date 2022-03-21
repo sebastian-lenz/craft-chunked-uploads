@@ -1,8 +1,8 @@
 Craft.Uploader = (function(uploader) {
   var toBytes = 1048576;
   var saveActions = [
-    'admin/actions/assets/save-asset',
-    'admin/actions/assets/upload',
+    Craft.cpTrigger + '/actions/assets/save-asset',
+    Craft.cpTrigger + '/actions/assets/upload',
   ];
   var settings = {
     chunkSize: 1,
