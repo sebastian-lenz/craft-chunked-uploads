@@ -7,6 +7,9 @@
     "php": "^7.2.5",
     "craftcms/cms": "^3.7.0"
   },
+  "suggest": {
+    "ext-imagick": "*"
+  },
   "autoload": {
     "psr-4": {
       "lenz\\craft\\chunkedUploads\\": "src/"
