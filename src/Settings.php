@@ -308,21 +308,21 @@ class Settings extends Model
    * @return array|null
    */
   protected function toFolderOptions(array $options): ?array {
-    $hasOptions = false;
+    $result = [];
+    $hasResult = false;
+
     foreach ($options as $key => $value) {
       if (!in_array($key, self::FOLDER_OPTIONS)) {
         continue;
       }
 
-      if (is_numeric($value)) {
-        $hasOptions = true;
-        $options[$key] = intval($value);
-      } else {
-        $options[$key] = null;
-      }
+      $hasResult = $hasResult || is_numeric($value);
+      $result[$key] = is_numeric($value)
+        ? intval($value)
+        : null;
     }
 
-    return $hasOptions ? $options : null;
+    return $hasResult ? $result : null;
   }
 
   /**
