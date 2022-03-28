@@ -15,7 +15,7 @@ class FileUploadPatch extends AssetBundle
   /**
    * @inheritdoc
    */
-  public function init() {
+  public function init(): void {
     $settings = Plugin::getInstance()->getSettings();
 
     $this->sourcePath = __DIR__ . '/resources';

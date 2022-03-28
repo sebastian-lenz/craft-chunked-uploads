@@ -4,8 +4,8 @@
   "type": "craft-plugin",
   "license": "MIT",
   "require": {
-    "php": "^7.2.5 || ^8.0",
-    "craftcms/cms": "^3.7.0"
+    "php": "^8.0",
+    "craftcms/cms": "^4.0.0-beta"
   },
   "suggest": {
     "ext-imagick": "*"
@@ -27,7 +27,7 @@
       "craftcms/plugin-installer": true
     },
     "platform": {
-      "php": "7.2.5"
+      "php": "8.0.2"
     }
   }
 }

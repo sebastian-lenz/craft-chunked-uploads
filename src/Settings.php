@@ -17,27 +17,27 @@ class Settings extends Model
   /**
    * @var int
    */
-  public $chunkSize = 1;
+  public int $chunkSize = 1;
 
   /**
    * @var array
    */
-  public $folders = [];
+  public array $folders = [];
 
   /**
    * @var int
    */
-  public $maxUploadSize = 0;
+  public int $maxUploadSize = 0;
 
   /**
    * @var bool
    */
-  private $_useUris;
+  private bool $_useUris;
 
   /**
    * @var int[]
    */
-  private $_visibleFolderIds;
+  private array $_visibleFolderIds;
 
   /**
    * List of known folder options
@@ -71,6 +71,7 @@ class Settings extends Model
   /**
    * @param int $id
    * @return array
+   * @noinspection PhpUnused (Template method)
    */
   public function getFolderOptions(int $id): array {
     $uri = $this->toUri($id);
@@ -141,7 +142,7 @@ class Settings extends Model
    * @param array $values
    * @param bool $safeOnly
    */
-  public function setAttributes($values, $safeOnly = true) {
+  public function setAttributes($values, $safeOnly = true): void {
     if (isset($values['folderOptions'])) {
       $this->setFolderOptions($values['folderOptions']);
       unset($values['folderOptions']);
@@ -153,7 +154,7 @@ class Settings extends Model
   /**
    * @param mixed $folders
    */
-  public function setFolderOptions($folders) {
+  public function setFolderOptions(mixed $folders): void {
     $result = [];
     if (!is_array($folders)) {
       $folders = [];
@@ -182,9 +183,8 @@ class Settings extends Model
 
   /**
    * @inheritDoc
-   * @noinspection PhpMissingReturnTypeInspection
    */
-  public function toArray(array $fields = [], array $expand = [], $recursive = true) {
+  public function toArray(array $fields = [], array $expand = [], $recursive = true): array {
     $result = parent::toArray($fields, $expand, $recursive);
     if (array_key_exists('folders', $result)) {
       $result['folders'] = (object)$result['folders'];
@@ -204,7 +204,7 @@ class Settings extends Model
   protected function createUri(VolumeFolder $folder): ?string {
     try {
       $result = $folder->getVolume()->uid;
-    } catch (Throwable $error) {
+    } catch (Throwable) {
       return null;
     }
 
@@ -262,7 +262,7 @@ class Settings extends Model
    * @param int $maxSize
    * @param array $result
    */
-  protected function getMaxUploadSizesRecursive(array $folders, int $maxSize, array &$result) {
+  protected function getMaxUploadSizesRecursive(array $folders, int $maxSize, array &$result): void {
     foreach ($folders as $folder) {
       $folderMaxSize = $maxSize;
       $uri = $this->toUri($folder);
@@ -286,7 +286,7 @@ class Settings extends Model
   /**
    * @param string $uri
    * @param array $options
-   * @return array
+   * @return array|null
    */
   protected function toCreateOptions(string $uri, array $options): ?array {
     if (!array_key_exists('create', $options) || empty($options['create']['path'])) {
@@ -330,7 +330,7 @@ class Settings extends Model
    * @param bool $forceUri
    * @return string|null
    */
-  protected function toUri($folderOrId, bool $forceUri = false): ?string {
+  protected function toUri(VolumeFolder|int $folderOrId, bool $forceUri = false): ?string {
     $folder = $folderOrId instanceof VolumeFolder
       ? $folderOrId
       : Craft::$app->assets->getFolderById($folderOrId);

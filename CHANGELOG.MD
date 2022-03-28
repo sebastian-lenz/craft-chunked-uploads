@@ -1,5 +1,8 @@
 # Release Notes for Chunked File Uploads
 
+## 2.0.0
+- Craft 4 and PHP 8 support
+
 ## 1.1.1 - 2022-03-23
 - Fix: Correctly filter out control panel only options
 

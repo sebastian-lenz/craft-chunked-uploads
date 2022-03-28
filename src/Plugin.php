@@ -29,17 +29,17 @@ class Plugin extends \craft\base\Plugin
   /**
    * @inheritDoc
    */
-  public $hasCpSettings = true;
+  public bool $hasCpSettings = true;
 
   /**
    * @var array
    */
-  public static $ALLOWED_IMAGE_FORMATS = ['GIF', 'PNG', 'JPEG'];
+  public static array $ALLOWED_IMAGE_FORMATS = ['GIF', 'PNG', 'JPEG'];
 
   /**
    * @var string
    */
-  public static $DEFAULT_FORMAT = 'JPEG';
+  public static string $DEFAULT_FORMAT = 'JPEG';
 
   /**
    * The name of the uploaded file we are watching for.
@@ -66,7 +66,7 @@ class Plugin extends \craft\base\Plugin
   /**
    * @throws Exception
    */
-  public function onBeforeAction() {
+  public function onBeforeAction(): void {
     $request = Craft::$app->request;
 
     if (
@@ -86,7 +86,7 @@ class Plugin extends \craft\base\Plugin
    * @param Event $event
    * @throws InvalidConfigException
    */
-  public function onViewEndBody(Event $event) {
+  public function onViewEndBody(Event $event): void {
     /** @var View $view */
     $view = $event->sender;
     if (array_key_exists(FileUploadAsset::class, $view->assetBundles)) {
@@ -152,7 +152,7 @@ class Plugin extends \craft\base\Plugin
    * @param Request $request
    * @param string $uploadedFile
    */
-  private function processImage(Request $request, string $uploadedFile) {
+  private function processImage(Request $request, string $uploadedFile): void {
     if (!extension_loaded('imagick')) {
       return;
     }
