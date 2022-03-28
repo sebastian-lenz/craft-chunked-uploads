@@ -7,7 +7,8 @@ file upload limit given by your web server.
 
 ## Requirements
 
-This plugin requires Craft CMS 4.0 or later.
+This plugin requires Craft CMS 4.0 or later. If you are using Craft 3, please
+use should switch to version 1.x of this plugin.
 
 
 ## Installation
