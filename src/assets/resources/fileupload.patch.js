@@ -25,10 +25,11 @@ Craft.Uploader = (function(uploader) {
       if (
         'url' in settings &&
         saveActions.some(function(saveAction) {
-          return settings.url.indexOf(saveAction) !== -1;
+          return decodeURIComponent(settings.url).indexOf(saveAction) !== -1;
         })
       ) {
         this.isSaveAction = true;
+        debugger;
       }
     },
 
