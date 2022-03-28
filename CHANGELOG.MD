@@ -1,5 +1,8 @@
 # Release Notes for Chunked File Uploads
 
+## 2.0.1 - 2022-03-28
+- Fix: Settings style is broken
+
 ## 2.0.0 - 2022-03-28
 - New: Craft 4 and PHP 8 support
 
