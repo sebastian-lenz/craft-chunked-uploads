@@ -10,19 +10,19 @@
 
     <tr>
       <td style="padding:4px 40px 4px {{ depth * 16 }}px;border-top: 1px solid #f1f5f8;">
-        <span class="icon" data-icon="{{ depth == 0 ? 'database' : 'categories' }}"></span>
+        <span class="icon" data-icon="{{ depth == 0 ? 'database' : 'folder' }}"></span>
         {{ folder }}
       </td>
       <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
-        <input type="number" name="folderOptions[{{ folder.id }}][maxUploadSize]" value="{{ options.maxUploadSize|default('') }}" style="text-align:right;width:75px;" />
+        <input type="number" name="folderOptions[{{ folder.id }}][maxUploadSize]" value="{{ options.maxUploadSize|default('') }}" class="chupInput table" />
         MB
       </td>
       <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
-        <input type="number" name="folderOptions[{{ folder.id }}][maxImageWidth]" value="{{ options.maxImageWidth|default('') }}" style="text-align:right;width:75px;" />
+        <input type="number" name="folderOptions[{{ folder.id }}][maxImageWidth]" value="{{ options.maxImageWidth|default('') }}" class="chupInput table" />
         Pixel
       </td>
       <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
-        <input type="number" name="folderOptions[{{ folder.id }}][maxImageHeight]" value="{{ options.maxImageHeight|default('') }}" style="text-align:right;width:75px;" />
+        <input type="number" name="folderOptions[{{ folder.id }}][maxImageHeight]" value="{{ options.maxImageHeight|default('') }}" class="chupInput table" />
         Pixel
       </td>
     </tr>
@@ -34,25 +34,36 @@
     {% if depth == 0 %}
       <tr>
         <td style="padding:4px 40px 4px 16px;border-top: 1px solid #f1f5f8;">
-          <span class="icon" data-icon="categories"></span>
-          <input name="folderOptions[{{ folder.id }}][create][path]">
+          <span class="icon" data-icon="folder"></span>
+          <input name="folderOptions[{{ folder.id }}][create][path]" class="chupInput">
         </td>
         <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
-          <input type="number" name="folderOptions[{{ folder.id }}][create][maxUploadSize]" style="text-align:right;width:75px;" />
+          <input type="number" name="folderOptions[{{ folder.id }}][create][maxUploadSize]" class="chupInput table" />
           MB
         </td>
         <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
-          <input type="number" name="folderOptions[{{ folder.id }}][create][maxImageWidth]" style="text-align:right;width:75px;" />
+          <input type="number" name="folderOptions[{{ folder.id }}][create][maxImageWidth]" class="chupInput table" />
           Pixel
         </td>
         <td style="padding:4px 20px 4px 0;border-top: 1px solid #f1f5f8;">
-          <input type="number" name="folderOptions[{{ folder.id }}][create][maxImageHeight]" style="text-align:right;width:75px;" />
+          <input type="number" name="folderOptions[{{ folder.id }}][create][maxImageHeight]" class="chupInput table" />
           Pixel
         </td>
       </tr>
     {% endif %}
   {% endfor %}
 {% endmacro %}
+
+<style>
+  .chupInput {
+    border: 1px solid rgba(96,125,159,.25);
+  }
+
+  .chupInput.table {
+    width: 75px;
+    text-align: right;
+  }
+</style>
 
 <h3>Global settings</h3>
 {{ forms.textField({
