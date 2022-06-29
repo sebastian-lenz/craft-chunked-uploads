@@ -1,5 +1,7 @@
 <?php
 
+/** @noinspection PhpComposerExtensionStubsInspection */
+
 namespace lenz\craft\chunkedUploads;
 
 use Craft;
@@ -13,6 +15,8 @@ use craft\web\Request;
 use craft\awss3\Volume;
 use craft\awss3\S3Client;
 use craft\web\Application;
+use yii\base\InvalidConfigException;
+use yii\base\Module;
 use yii\web\HeaderCollection;
 use yii\base\InvalidConfigException;
 use craft\web\assets\fileupload\FileUploadAsset;
@@ -20,6 +24,7 @@ use lenz\craft\chunkedUploads\assets\FileUploadPatch;
 
 /**
  * Class Plugin
+ *
  * @method Settings getSettings()
  */
 class Plugin extends \craft\base\Plugin
@@ -27,22 +32,22 @@ class Plugin extends \craft\base\Plugin
   /**
    * @inheritDoc
    */
-    public $hasCpSettings = true;
+public $hasCpSettings = true;
 
   /**
    * @var array
    */
-    public static $ALLOWED_IMAGE_FORMATS = ['GIF', 'PNG', 'JPEG'];
+public static $ALLOWED_IMAGE_FORMATS = ['GIF', 'PNG', 'JPEG'];
 
   /**
    * @var string
    */
-    public static $DEFAULT_FORMAT = 'JPEG';
+public static $DEFAULT_FORMAT = 'JPEG';
 
   /**
    * The name of the uploaded file we are watching for.
    */
-    const FILE_NAME = 'assets-upload';
+const FILE_NAME = 'assets-upload';
 
 
   /**
@@ -52,34 +57,32 @@ class Plugin extends \craft\base\Plugin
    * @param null $parent
    * @param array $config
    */
-    public function __construct($id, $parent = null, array $config = [])
-    {
-        parent::__construct($id, $parent, $config);
+public function __construct($id, $parent = null, array $config = [])
+{
+    parent::__construct($id, $parent, $config);
 
-        if (Craft::$app->request->isCpRequest) {
-            Event::on(Application::class, Application::EVENT_BEFORE_ACTION, [$this, 'onBeforeAction']);
-            Event::on(View::class, View::EVENT_END_BODY, [$this, 'onViewEndBody']);
-        }
+    if (Craft::$app->request->isCpRequest) {
+        Event::on(Application::class, Application::EVENT_BEFORE_ACTION, [$this, 'onBeforeAction']);
+        Event::on(View::class, View::EVENT_END_BODY, [$this, 'onViewEndBody']);
     }
+}
 
   /**
-   * @param Event $event
    * @throws Exception
    */
-    public function onBeforeAction(Event $event)
-    {
-        $request = Craft::$app->request;
+public function onBeforeAction()
+{
+    $request = Craft::$app->request;
 
-        if (
-            $request->getIsPost() &&
-            $request->getHeaders()->has('content-disposition') &&
-            $request->getHeaders()->has('content-range') &&
-            is_array($_FILES) &&
-            isset($_FILES[self::FILE_NAME])
-        ) {
-            if (! $this->processUpload($request)) {
-                die();
-            }
+    if (
+        $request->getIsPost() &&
+        $request->getHeaders()->has('content-disposition') &&
+        $request->getHeaders()->has('content-range') &&
+        is_array($_FILES) &&
+        isset($_FILES[self::FILE_NAME])
+    ) {
+        if (! $this->processUpload($request)) {
+            die();
         }
     }
 
@@ -101,7 +104,7 @@ class Plugin extends \craft\base\Plugin
    * @inheritDoc
    * @throws Exception
    */
-    protected function settingsHtml()
+    protected function settingsHtml(): ?string
     {
         return Craft::$app->view->renderTemplate(
             'chunked-uploads/_settings.twig',
@@ -111,14 +114,13 @@ class Plugin extends \craft\base\Plugin
         );
     }
 
-
   // Protected methods
   // -----------------
 
   /**
    * @return Model|null
    */
-    protected function createSettingsModel()
+    protected function createSettingsModel(): ?Model
     {
         return new Settings();
     }
@@ -127,7 +129,7 @@ class Plugin extends \craft\base\Plugin
    * @param HeaderCollection $headers
    * @return string|null
    */
-    private function getContentDisposition(HeaderCollection $headers)
+    private function getContentDisposition(HeaderCollection $headers): ?string
     {
         $contentDisposition = $headers->get('content-disposition');
         return $contentDisposition ?
@@ -142,7 +144,7 @@ class Plugin extends \craft\base\Plugin
    * @param HeaderCollection $headers
    * @return array[]
    */
-    private function getContentRange(HeaderCollection $headers)
+    private function getContentRange(HeaderCollection $headers): array
     {
         $contentRange = $headers->get('content-range');
         $parts = $contentRange
@@ -156,9 +158,10 @@ class Plugin extends \craft\base\Plugin
     }
 
   /**
+   * @param Request $request
    * @param string $uploadedFile
    */
-    private function processImage(Request $request, $uploadedFile)
+    private function processImage(Request $request, string $uploadedFile)
     {
         if (! extension_loaded('imagick')) {
             return;
@@ -221,7 +224,7 @@ class Plugin extends \craft\base\Plugin
    * @return bool
    * @throws Exception
    */
-    private function processUpload(Request $request)
+    private function processUpload(Request $request): bool
     {
         $headers          = $request->getHeaders();
         $upload           = $_FILES[self::FILE_NAME];

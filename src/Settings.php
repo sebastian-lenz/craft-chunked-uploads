@@ -4,7 +4,9 @@ namespace lenz\craft\chunkedUploads;
 
 use Craft;
 use craft\base\Model;
+use craft\helpers\ArrayHelper;
 use craft\models\VolumeFolder;
+use Throwable;
 use yii\behaviors\AttributeTypecastBehavior;
 
 /**
@@ -15,74 +17,102 @@ class Settings extends Model
   /**
    * @var int
    */
-    public $chunkSize = 1;
+public $chunkSize = 1;
 
   /**
    * @var array
    */
-    public $folders = [];
+public $folders = [];
 
   /**
    * @var int
    */
-    public $maxUploadSize = 0;
+public $maxUploadSize = 0;
+
+  /**
+   * @var bool
+   */
+private $_useUris;
+
+  /**
+   * @var int[]
+   */
+private $_visibleFolderIds;
+
+  /**
+   * List of known folder options
+   */
+const FOLDER_OPTIONS = ['maxUploadSize', 'maxImageWidth', 'maxImageHeight'];
 
 
-    public $useBucket;
-    public $keyId;
-    public $secret;
-    public $region;
+public $useBucket;
+public $keyId;
+public $secret;
+public $region;
 
   /**
    * @inheritDoc
    */
-    public function behaviors()
-    {
-        return [
-            'typecast' => [
-                'class' => AttributeTypecastBehavior::class,
-            ],
-        ];
-    }
+public function behaviors(): array
+{
+    return [
+        'typecast' => [
+            'class' => AttributeTypecastBehavior::class,
+        ],
+    ];
+}
+
+  /**
+   * @param VolumeFolder[] $folders
+   * @return VolumeFolder[]
+   * @noinspection PhpUnused (Used in settings template)
+   */
+public function filterVisibleChildren(array $folders): array
+{
+    $visibleIds = $this->getVisibleFolderIds();
+    return array_filter($folders, function (VolumeFolder $folder) use ($visibleIds) {
+        return in_array($folder->id, $visibleIds);
+    });
+}
 
   /**
    * @param int $id
    * @return array
    */
-    public function getFolderOptions($id)
-    {
-        return array_key_exists($id, $this->folders)
-        ? $this->folders[$id]
-        : [];
-    }
+public function getFolderOptions(int $id): array
+{
+    $uri = $this->toUri($id);
+    return $uri && array_key_exists($uri, $this->folders)
+    ? $this->folders[$uri]
+    : [];
+}
 
   /**
    * @return VolumeFolder[]
    */
-    public function getFolderTree()
-    {
-        return Craft::$app->assets->getFolderTreeByVolumeIds(
-            Craft::$app->getVolumes()->getAllVolumeIds()
-        );
-    }
+public function getFolderTree(): array
+{
+    return Craft::$app->assets->getFolderTreeByVolumeIds(
+        Craft::$app->getVolumes()->getAllVolumeIds()
+    );
+}
 
   /**
    * @param int $folderId
    * @return array
+   * @noinspection PhpUnused (Used in settings template)
    */
-    public function getMaxImageDimension($folderId)
-    {
-        $folder = Craft::$app->getAssets()->getFolderById($folderId);
-        while ($folder) {
-            if (array_key_exists($folder->id, $this->folders)) {
-                $options = $this->folders[$folder->id];
-                return [
-                    isset($options['maxImageWidth']) ? $options['maxImageWidth'] : null,
-                    isset($options['maxImageHeight']) ? $options['maxImageHeight'] : null,
-                ];
-            }
-
-            $folder = $folder->getParent();
+public function getMaxImageDimension(int $folderId): array
+{
+    $folder = Craft::$app->getAssets()->getFolderById($folderId);
+    while ($folder) {
+        $uri = $this->toUri($folder);
+        if (array_key_exists($uri, $this->folders)) {
+            $options = $this->folders[$uri];
+            return [
+                $options['maxImageWidth'] ?? null,
+                $options['maxImageHeight'] ?? null,
+            ];
         }
 
         return [null, null];
@@ -90,17 +120,18 @@ class Settings extends Model
 
   /**
    * @return array
+   * @noinspection PhpUnused (Used in settings template)
    */
-    public function getMaxUploadSizes()
+    public function getMaxUploadSizes(): array
     {
-        $result = [];
+        $result = [
+            'default' => $this->maxUploadSize
+        ];
         $this->getMaxUploadSizesRecursive(
             $this->getFolderTree(),
             $this->maxUploadSize,
             $result
         );
-
-        $result['default'] = $this->maxUploadSize;
 
         return $result;
     }
@@ -108,7 +139,7 @@ class Settings extends Model
   /**
    * @return array
    */
-    public function rules()
+    public function rules(): array
     {
         return [
             [['chunkSize'], 'integer', 'min' => 1],
@@ -136,48 +167,130 @@ class Settings extends Model
    */
     public function setFolderOptions($folders)
     {
+        $result = [];
         if (! is_array($folders)) {
             $folders = [];
         }
 
-        foreach ($folders as $id => &$options) {
-            $hasOptions = false;
-            foreach ($options as $key => $value) {
-                if (is_numeric($value)) {
-                    $hasOptions = true;
-                    $options[$key] = intval($value);
-                } else {
-                    $options[$key] = null;
-                }
+        foreach ($folders as $id => $options) {
+            $uri = $this->toUri($id, true);
+            if (is_null($uri)) {
+                continue;
             }
 
-            if (! $hasOptions) {
-                unset($folders[$id]);
+            $folderOptions = $this->toFolderOptions($options);
+            if (! empty($folderOptions)) {
+                $result[$uri] = $folderOptions;
+            }
+
+            $create = $this->toCreateOptions($uri, $options);
+            if (! empty($create)) {
+                $result[$create['uri']] = $create['options'];
             }
         }
 
-        $this->folders = $folders;
+        $this->_useUris = true;
+        $this->folders = $result;
     }
 
+  /**
+   * @inheritDoc
+   * @noinspection PhpMissingReturnTypeInspection
+   */
+    public function toArray(array $fields = [], array $expand = [], $recursive = true)
+    {
+        $result = parent::toArray($fields, $expand, $recursive);
+        if (array_key_exists('folders', $result)) {
+            $result['folders'] = (object)$result['folders'];
+        }
+
+        return $result;
+    }
 
   // Protected methods
   // -----------------
+
+  /**
+   * @param VolumeFolder $folder
+   * @return string|null
+   */
+    protected function createUri(VolumeFolder $folder): ?string
+    {
+        try {
+            $result = $folder->getVolume()->uid;
+        } catch (Throwable $error) {
+            return null;
+        }
+
+        return $result . '/' . trim(is_null($folder->path) ? '' : $folder->path, '/');
+    }
+
+  /**
+   * @param string $uriOrId
+   * @param bool $forceUri
+   * @return VolumeFolder|null
+   */
+    protected function fromUri(string $uriOrId, bool $forceUri = false): ?VolumeFolder
+    {
+        if (! $this->useUris() && ! $forceUri) {
+            return Craft::$app->assets->getFolderById($uriOrId);
+        }
+
+        $parts = explode('/', $uriOrId);
+        $volume = Craft::$app->volumes->getVolumeByUid(array_shift($parts));
+        $folder = $volume ? Craft::$app->assets->getRootFolderByVolumeId($volume->id) : null;
+
+        while ($folder && count($parts)) {
+            $part = array_shift($parts);
+            $folder = ArrayHelper::firstWhere($folder->getChildren(), function (VolumeFolder $child) use ($part) {
+                return $child->name === $part;
+            });
+        }
+
+        return $folder;
+    }
+
+  /**
+   * @return int[]
+   */
+    protected function getVisibleFolderIds(): array
+    {
+        if (isset($this->_visibleFolderIds)) {
+            return $this->_visibleFolderIds;
+        }
+
+        $result = [];
+        foreach (array_keys($this->folders) as $uriOrId) {
+            $folder = $this->fromUri($uriOrId);
+            while ($folder) {
+                if (in_array($folder->id, $result)) {
+                    break;
+                }
+                $result[] = $folder->id;
+                $folder = $folder->getParent();
+            }
+        }
+
+        $this->_visibleFolderIds = $result;
+        return $result;
+    }
 
   /**
    * @param VolumeFolder[] $folders
    * @param int $maxSize
    * @param array $result
    */
-    protected function getMaxUploadSizesRecursive($folders, $maxSize, &$result)
+    protected function getMaxUploadSizesRecursive(array $folders, int $maxSize, array &$result)
     {
         foreach ($folders as $folder) {
             $folderMaxSize = $maxSize;
+            $uri = $this->toUri($folder);
             if (
-                array_key_exists($folder->id, $this->folders) &&
-                array_key_exists('maxUploadSize', $this->folders[$folder->id]) &&
-                is_numeric($this->folders[$folder->id]['maxUploadSize'])
+                array_key_exists($uri, $this->folders) &&
+                array_key_exists('maxUploadSize', $this->folders[$uri]) &&
+                is_numeric($this->folders[$uri]['maxUploadSize'])
             ) {
-                $folderMaxSize = $this->folders[$folder->id]['maxUploadSize'];
+                $folderMaxSize = $this->folders[$uri]['maxUploadSize'];
             }
 
             $result[$folder->id] = $folderMaxSize;
@@ -187,5 +300,81 @@ class Settings extends Model
                 $this->getMaxUploadSizesRecursive($children, $folderMaxSize, $result);
             }
         }
+    }
+
+  /**
+   * @param string $uri
+   * @param array $options
+   * @return array
+   */
+    protected function toCreateOptions(string $uri, array $options): ?array
+    {
+        if (! array_key_exists('create', $options) || empty($options['create']['path'])) {
+            return null;
+        }
+
+        $folderOptions = $this->toFolderOptions($options['create']);
+        $segments = explode('/', $uri);
+        $uri = reset($segments) . '/' . trim($options['create']['path'], '/');
+        $folder = self::fromUri($uri, true);
+
+        return is_null($folder) || is_null($folderOptions)
+        ? null
+        : ['uri' => $uri, 'options' => $folderOptions];
+    }
+
+  /**
+   * @param array $options
+   * @return array|null
+   */
+    protected function toFolderOptions(array $options): ?array
+    {
+        $result = [];
+        $hasResult = false;
+
+        foreach ($options as $key => $value) {
+            if (! in_array($key, self::FOLDER_OPTIONS)) {
+                continue;
+            }
+
+            $hasResult = $hasResult || is_numeric($value);
+            $result[$key] = is_numeric($value)
+            ? intval($value)
+            : null;
+        }
+
+        return $hasResult ? $result : null;
+    }
+
+  /**
+   * @param int|VolumeFolder $folderOrId
+   * @param bool $forceUri
+   * @return string|null
+   */
+    protected function toUri($folderOrId, bool $forceUri = false): ?string
+    {
+        $folder = $folderOrId instanceof VolumeFolder
+        ? $folderOrId
+        : Craft::$app->assets->getFolderById($folderOrId);
+
+        if (! ($folder instanceof VolumeFolder)) {
+            return null;
+        }
+
+        return $this->useUris() || $forceUri
+        ? $this->createUri($folder)
+        : $folder->id;
+    }
+
+  /**
+   * @return bool
+   */
+    protected function useUris(): bool
+    {
+        if (! isset($this->_useUris)) {
+            $this->_useUris = ArrayHelper::isAssociative($this->folders);
+        }
+
+        return $this->_useUris;
     }
 }
