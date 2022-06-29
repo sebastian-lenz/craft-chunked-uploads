@@ -100,6 +100,8 @@ class Settings extends Model
             $result
         );
 
+        $result['default'] = $this->maxUploadSize;
+
         return $result;
     }
 
