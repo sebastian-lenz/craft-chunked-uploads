@@ -1,7 +1,5 @@
 <?php
 
-/** @noinspection PhpComposerExtensionStubsInspection */
-
 namespace lenz\craft\chunkedUploads;
 
 use Craft;
@@ -14,9 +12,8 @@ use craft\base\Model;
 use craft\web\Request;
 use craft\awss3\Volume;
 use craft\awss3\S3Client;
+use craft\helpers\App;
 use craft\web\Application;
-use yii\base\InvalidConfigException;
-use yii\base\Module;
 use yii\web\HeaderCollection;
 use yii\base\InvalidConfigException;
 use craft\web\assets\fileupload\FileUploadAsset;
@@ -24,7 +21,6 @@ use lenz\craft\chunkedUploads\assets\FileUploadPatch;
 
 /**
  * Class Plugin
- *
  * @method Settings getSettings()
  */
 class Plugin extends \craft\base\Plugin
@@ -32,22 +28,24 @@ class Plugin extends \craft\base\Plugin
   /**
    * @inheritDoc
    */
-public $hasCpSettings = true;
+    public $hasCpSettings = true;
 
   /**
    * @var array
    */
-public static $ALLOWED_IMAGE_FORMATS = ['GIF', 'PNG', 'JPEG'];
+    public static $ALLOWED_IMAGE_FORMATS = ['GIF', 'PNG', 'JPEG'];
 
   /**
    * @var string
    */
-public static $DEFAULT_FORMAT = 'JPEG';
+    public static $DEFAULT_FORMAT = 'JPEG';
 
   /**
    * The name of the uploaded file we are watching for.
    */
-const FILE_NAME = 'assets-upload';
+    const FILE_NAME = 'assets-upload';
+
+    const REPLACE_FILE_NAME = 'replaceFile';
 
 
   /**
@@ -57,32 +55,34 @@ const FILE_NAME = 'assets-upload';
    * @param null $parent
    * @param array $config
    */
-public function __construct($id, $parent = null, array $config = [])
-{
-    parent::__construct($id, $parent, $config);
+    public function __construct($id, $parent = null, array $config = [])
+    {
+        parent::__construct($id, $parent, $config);
 
-    if (Craft::$app->request->isCpRequest) {
-        Event::on(Application::class, Application::EVENT_BEFORE_ACTION, [$this, 'onBeforeAction']);
-        Event::on(View::class, View::EVENT_END_BODY, [$this, 'onViewEndBody']);
+        if (Craft::$app->request->isCpRequest) {
+            Event::on(Application::class, Application::EVENT_BEFORE_ACTION, [$this, 'onBeforeAction']);
+            Event::on(View::class, View::EVENT_END_BODY, [$this, 'onViewEndBody']);
+        }
     }
-}
 
   /**
+   * @param Event $event
    * @throws Exception
    */
-public function onBeforeAction()
-{
-    $request = Craft::$app->request;
+    public function onBeforeAction(Event $event)
+    {
+        $request = Craft::$app->request;
 
-    if (
-        $request->getIsPost() &&
-        $request->getHeaders()->has('content-disposition') &&
-        $request->getHeaders()->has('content-range') &&
-        is_array($_FILES) &&
-        isset($_FILES[self::FILE_NAME])
-    ) {
-        if (! $this->processUpload($request)) {
-            die();
+        if (
+            $request->getIsPost() &&
+            $request->getHeaders()->has('content-disposition') &&
+            $request->getHeaders()->has('content-range') &&
+            is_array($_FILES) &&
+            (isset($_FILES[self::FILE_NAME]) || isset($_FILES[self::REPLACE_FILE_NAME]))
+        ) {
+            if (! $this->processUpload($request)) {
+                die();
+            }
         }
     }
 
@@ -104,7 +104,7 @@ public function onBeforeAction()
    * @inheritDoc
    * @throws Exception
    */
-    protected function settingsHtml(): ?string
+    protected function settingsHtml()
     {
         return Craft::$app->view->renderTemplate(
             'chunked-uploads/_settings.twig',
@@ -114,13 +114,14 @@ public function onBeforeAction()
         );
     }
 
+
   // Protected methods
   // -----------------
 
   /**
    * @return Model|null
    */
-    protected function createSettingsModel(): ?Model
+    protected function createSettingsModel()
     {
         return new Settings();
     }
@@ -129,7 +130,7 @@ public function onBeforeAction()
    * @param HeaderCollection $headers
    * @return string|null
    */
-    private function getContentDisposition(HeaderCollection $headers): ?string
+    private function getContentDisposition(HeaderCollection $headers)
     {
         $contentDisposition = $headers->get('content-disposition');
         return $contentDisposition ?
@@ -144,7 +145,7 @@ public function onBeforeAction()
    * @param HeaderCollection $headers
    * @return array[]
    */
-    private function getContentRange(HeaderCollection $headers): array
+    private function getContentRange(HeaderCollection $headers)
     {
         $contentRange = $headers->get('content-range');
         $parts = $contentRange
@@ -158,10 +159,9 @@ public function onBeforeAction()
     }
 
   /**
-   * @param Request $request
    * @param string $uploadedFile
    */
-    private function processImage(Request $request, string $uploadedFile)
+    private function processImage(Request $request, $uploadedFile)
     {
         if (! extension_loaded('imagick')) {
             return;
@@ -224,10 +224,10 @@ public function onBeforeAction()
    * @return bool
    * @throws Exception
    */
-    private function processUpload(Request $request): bool
+    private function processUpload(Request $request)
     {
         $headers          = $request->getHeaders();
-        $upload           = $_FILES[self::FILE_NAME];
+        $upload           = $_FILES[self::FILE_NAME] ?? $_FILES[self::REPLACE_FILE_NAME];
         $uploadedFile     = $upload['tmp_name'];
         $originalFileName = $this->getContentDisposition($headers);
 
@@ -254,7 +254,7 @@ public function onBeforeAction()
     protected function uploadLocal(Request $request)
     {
         $headers          = $request->getHeaders();
-        $upload           = $_FILES[self::FILE_NAME];
+        $upload           = $_FILES[self::FILE_NAME] ?? $_FILES[self::REPLACE_FILE_NAME];
         $uploadedFile     = $upload['tmp_name'];
         $originalFileName = $this->getContentDisposition($headers);
 
@@ -292,16 +292,16 @@ public function onBeforeAction()
     protected function uploadBucket(Request $request)
     {
         $headers          = $request->getHeaders();
-        $upload           = $_FILES[self::FILE_NAME];
+        $upload           = $_FILES[self::FILE_NAME] ?? $_FILES[self::REPLACE_FILE_NAME];
         $uploadedFile     = $upload['tmp_name'];
         $originalFileName = $this->getContentDisposition($headers);
 
         list($chunkOffset, $totalSize) = $this->getContentRange($headers);
 
-        $bucket = Craft::parseEnv($this->getSettings()->useBucket);
-        $keyId = Craft::parseEnv($this->getSettings()->keyId);
-        $secret = Craft::parseEnv($this->getSettings()->secret);
-        $region = Craft::parseEnv($this->getSettings()->region);
+        $bucket = App::parseEnv($this->getSettings()->useBucket);
+        $keyId = App::parseEnv($this->getSettings()->keyId);
+        $secret = App::parseEnv($this->getSettings()->secret);
+        $region = App::parseEnv($this->getSettings()->region);
 
         $client = new S3Client([
             'version'     => 'latest',

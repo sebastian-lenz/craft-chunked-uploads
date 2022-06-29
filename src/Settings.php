@@ -104,6 +104,9 @@ public function getFolderTree(): array
    */
 public function getMaxImageDimension(int $folderId): array
 {
+    if ($folderId === null) {
+        return [null, null];
+    }
     $folder = Craft::$app->getAssets()->getFolderById($folderId);
     while ($folder) {
         $uri = $this->toUri($folder);
@@ -125,7 +128,7 @@ public function getMaxImageDimension(int $folderId): array
     public function getMaxUploadSizes(): array
     {
         $result = [
-            'default' => $this->maxUploadSize
+            0 => $this->maxUploadSize
         ];
         $this->getMaxUploadSizesRecursive(
             $this->getFolderTree(),

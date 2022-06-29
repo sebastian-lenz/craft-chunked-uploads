@@ -1,8 +1,9 @@
 Craft.Uploader = (function (uploader) {
   var toBytes = 1048576;
   var saveActions = [
-    Craft.cpTrigger + "/actions/assets/save-asset",
-    Craft.cpTrigger + "/actions/assets/upload",
+    "admin/actions/assets/save-asset",
+    "admin/actions/assets/replace-file",
+    "admin/actions/assets/upload",
   ];
   var settings = {
     chunkSize: 1,
@@ -35,7 +36,7 @@ Craft.Uploader = (function (uploader) {
 
       getFolderUploadSize: function (paramObject) {
         if (!this.isSaveAction || !("folderId" in paramObject)) {
-          return null;
+          return settings.maxSizes[0];
         }
 
         var folderId = parseInt(paramObject.folderId);
@@ -104,6 +105,7 @@ Craft.Uploader = (function (uploader) {
         uploader.prototype.setParams.call(this, paramObject);
 
         var maxSize = this.getFolderUploadSize(paramObject);
+        console.log(maxSize, settings.chunkSize);
         if (!maxSize) {
           this.settings.maxFileSize = uploader.defaults.maxFileSize;
           this.uploader.fileupload("option", "maxChunkSize", undefined);
