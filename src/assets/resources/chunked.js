@@ -85,8 +85,9 @@
 
         const state = {
             events: {},
+            currentChunkSize: 0,
             chunkOffset: 0,
-            uploadTotal: 0,
+            uploadedTotal: 0,
         }
 
         /**
@@ -102,13 +103,12 @@
 
             // Trigger progress events.
             xhr.upload.addEventListener('progress', event => {
-                state.uploadTotal = state.chunkOffset + event.loaded;
-
+                state.uploadedTotal = state.chunkOffset + event.loaded;
                 emit('progress', {
                     lengthComputable: true,
-                    loaded: state.uploadTotal,
+                    loaded: state.uploadedTotal,
                     total: config.file.size,
-                    percent: state.uploadTotal / config.file.size,
+                    percent: Math.min(state.uploadedTotal / config.file.size, 1),
                 });
             });
 
@@ -137,6 +137,7 @@
                 }
 
                 // Ok fine.
+                state.chunkOffset = (state.chunkOffset + state.currentChunkSize);
                 const finished = state.chunkOffset >= config.file.size;
                 resolve(finished ? event.data : null);
             });
@@ -153,7 +154,7 @@
             // Under the chunk limit, or disabled.
             // Send the whole thing with no chunking headers.s
             if (config.chunkSize == 0 || config.file.size <= config.chunkSize) {
-                state.chunkOffset = config.file.size;
+                state.currentChunkSize = config.file.size;
                 formData.set(config.field, config.file, config.file.name);
             }
             // Slice me a chunk.
@@ -161,10 +162,11 @@
                 const chunk = config.file.slice(state.chunkOffset, state.chunkOffset + config.chunkSize);
                 formData.set(config.field, chunk, config.file.name);
 
+                state.currentChunkSize = chunk.size;
+
                 // Increment the chunk window.
                 const chunkStart = state.chunkOffset;
-                state.chunkOffset = state.chunkOffset + chunk.size;
-                const chunkEnd = state.chunkOffset - 1;
+                const chunkEnd = (state.chunkOffset + chunk.size) - 1;
 
                 const range = 'bytes ' + chunkStart + '-' + chunkEnd + '/' + config.file.size;
                 const disposition = 'form-data; name="' + config.field + '"; filename="' + config.file.name + '"';
