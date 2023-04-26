@@ -29,7 +29,6 @@ Craft.Uploader = (function(uploader) {
         })
       ) {
         this.isSaveAction = true;
-        debugger;
       }
     },
 
