@@ -22,10 +22,11 @@ Craft.Uploader = (function(uploader) {
     init: function($element, settings) {
       uploader.prototype.init.call(this, $element, settings);
 
+      var resolvedSettings = this.settings || settings;
       if (
-        'url' in settings &&
+        'url' in resolvedSettings &&
         saveActions.some(function(saveAction) {
-          return decodeURIComponent(settings.url).indexOf(saveAction) !== -1;
+          return decodeURIComponent(resolvedSettings.url).indexOf(saveAction) !== -1;
         })
       ) {
         this.isSaveAction = true;
