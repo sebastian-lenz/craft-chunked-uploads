@@ -10,8 +10,8 @@ Craft.Uploader = (function(uploader) {
   };
 
   try {
-    var scriptTag = document.scripts[document.scripts.length - 1];
-    settings = JSON.parse(scriptTag.getAttribute('data-settings'));
+    var scriptTag = document.querySelector('script[src*="fileupload.patch.js"]');
+    settings = JSON.parse(scriptTag.dataset.settings);
   } catch (error) {
     console.error(error);
   }
